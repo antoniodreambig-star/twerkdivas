@@ -7,7 +7,7 @@ export const metadata = { title: 'Pop-up events · TwerkDivas', description: 'Li
 function Card({ e, big }) {
   const v = e.venueFull; const d = new Date(e.start); const mo = d.toLocaleDateString('en-US', { timeZone: e.tz, month: 'short' }); const dd = d.toLocaleDateString('en-US', { timeZone: e.tz, day: 'numeric' }); const wk = d.toLocaleDateString('en-US', { timeZone: e.tz, weekday: 'short' });
   const taken = e.cap - e.left; const pct = e.cap ? Math.min(100, Math.round((taken / e.cap) * 100)) : 0; const out = e.left <= 0;
-  return (<article className={`pop ${big ? 'big' : ''}`}><div className="popdate"><span>{wk}</span><b>{dd}</b><span>{mo}</span></div>
+  return (<article className={`popcard ${big ? 'big' : ''}`}><div className="popdate"><span>{wk}</span><b>{dd}</b><span>{mo}</span></div>
     <div className="popbody"><div className="row" style={{ gap: 8 }}><span className="tag pink">Pop-up</span>{e.program && <span className="tag volt">{e.program}</span>}{!out && e.left <= 10 && <span className="tag cyan">Only {e.left} left</span>}</div>
       <h2 className="poptitle">{e.title}</h2>{e.tagline && <p className="poptag">{e.tagline}</p>}
       <p className="popmeta"><b>{fmtDay(e.start, e.tz)}</b> · {fmtTime(e.start, e.tz)}{e.end ? ` – ${fmtTime(e.end, e.tz)}` : ''}<br />{v ? `${v.name} · ${v.address}, ${v.city}, ${v.state}` : ''}</p>
