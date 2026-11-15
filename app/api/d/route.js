@@ -1,0 +1,152 @@
+export const dynamic = 'force-dynamic';
+import { NextResponse } from 'next/server';
+import * as db from '@/lib/db';
+import { currentUser, hasAccess, hashPassword, safeUser } from '@/lib/auth';
+import { AGREEMENT_VERSION, isEmail } from '@/lib/rules';
+import { memberView, adminView, settings } from '@/lib/data';
+import { cleanUrl, cleanVideoRef } from '@/lib/video';
+import { str } from '@/lib/rules';
+import { STATES, slugify, STATE_TZ, TZ_OPTIONS, DEFAULT_TZ } from '@/lib/us';
+import { zonedToUtcISO } from '@/lib/tz';
+import { snapshot, availability, slot, refundOrder, cancelClass, maskEmail } from '@/lib/tickets';
+
+const bad = (m, s = 400) => NextResponse.json({ error: m }, { status: s });
+const url = (v, label) => { const x = str(v, 600); if (!x) return ''; const c = cleanUrl(x); if (!c) throw new Error(`${label} must be a full https:// link`); return c; };
+const date = (v, label) => { const t = new Date(v); if (!v || Number.isNaN(t.getTime())) throw new Error(`Pick a valid ${label}`); return t.toISOString(); };
+
+export async function GET(req) {
+  const u = await currentUser(); if (!u) return bad('Sign in first', 401);
+  const view = new URL(req.url).searchParams.get('view');
+  if (view === 'admin') return u.role === 'admin' ? NextResponse.json(await adminView()) : bad('Admins only', 403);
+  if (view === 'orders') { if (u.role !== 'admin') return bad('Admins only', 403); const cid = new URL(req.url).searchParams.get('classId'); return NextResponse.json({ orders: (await db.list('orders')).filter((o) => o.classId === cid).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).map((o) => ({ id: o.id, name: o.name, email: o.email, qty: o.qty, amount: o.amount, status: o.status, createdAt: o.createdAt, refundError: o.refundError || '' })) }); }
+  if (view === 'me') { const s = await settings(); return NextResponse.json({ me: safeUser(u), access: hasAccess(u), settings: { price: s.price, welcome: s.welcome, agreement: s.agreement } }); }
+  if (!hasAccess(u)) return bad('Membership required', 402);
+  if (view === 'roster') {
+    const c = await db.get('classes', new URL(req.url).searchParams.get('classId') || ''); if (!c || (c.userId !== u.id && u.role !== 'admin')) return bad('Not your class', 403);
+    const snap = await snapshot(); const a = availability(c, snap); const v = snap.vb[c.venueId];
+    return NextResponse.json({ cls: { id: c.id, title: c.title, start: c.start, end: c.end || '', mode: c.mode, tz: c.tz || 'America/Chicago', canceled: !!c.canceled, venue: v ? `${v.name}, ${v.city}, ${v.state}` : '', venueCap: a.venueCap }, cap: a.cap, sold: a.sold, checkedIn: a.checkedIn,
+      tickets: snap.tickets.filter((t) => t.classId === c.id && t.status === 'valid').sort((x, y) => x.name.localeCompare(y.name)).map((t) => ({ id: t.id, code: t.code, name: t.name, checkedInAt: t.checkedInAt || '', email: maskEmail(snap.ob[t.orderId]?.email || '') })) });
+  }
+  return NextResponse.json(await memberView(u));
+}
+
+export async function POST(req) {
+  const u = await currentUser(); if (!u) return bad('Sign in first', 401);
+  try {
+    const b = await req.json(); const op = String(b.op || ''); const admin = u.role === 'admin'; const out = {};
+    // ----- admin only -----
+    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup)\.|class\.cancel$)/.test(op) || op === 'review') {
+      if (!admin) return bad('Admins only', 403);
+      const now = new Date().toISOString();
+      switch (op) {
+        case 'program.save': { const id = b.id || `prog-${db.uid()}`; const old = b.id ? await db.get('programs', id) : null; const title = str(b.title, 80); if (!title) throw new Error('Name the program'); await db.put('programs', id, { ...(old || {}), id, title, blurb: str(b.blurb, 300), order: Number(b.order) || old?.order || 99 }); break; }
+        case 'program.del': await db.del('programs', str(b.id, 60)); break;
+        case 'video.save': {
+          const id = b.id || `vid-${db.uid()}`; const old = b.id ? await db.get('videos', id) : null; const title = str(b.title, 120); if (!title) throw new Error('Name the video');
+          if (!(await db.get('programs', str(b.programId, 60)))) throw new Error('Pick a program');
+          await db.put('videos', id, { ...(old || { createdAt: now }), id, programId: b.programId, title, url: (() => { const c = cleanVideoRef(b.url); if (!c) throw new Error('The video must be a full https:// link or a mux: playback ID'); return c; })(), level: ['Beginner', 'Intermediate', 'Advanced'].includes(b.level) ? b.level : 'Beginner', minutes: Math.max(0, Math.min(600, Number(b.minutes) || 0)), notes: str(b.notes, 4000), music: str(b.music, 300), order: Number(b.order) || old?.order || 99, published: b.published !== false }); break; }
+        case 'video.del': await db.del('videos', str(b.id, 60)); break;
+        case 'announce.save': { const id = b.id || `ann-${db.uid()}`; const old = b.id ? await db.get('announcements', id) : null; if (!str(b.title)) throw new Error('Add a title'); await db.put('announcements', id, { ...(old || { createdAt: now }), id, title: str(b.title, 120), body: str(b.body, 2000), pinned: !!b.pinned }); break; }
+        case 'announce.del': await db.del('announcements', str(b.id, 60)); break;
+        case 'resource.save': { const id = b.id || `res-${db.uid()}`; const old = b.id ? await db.get('resources', id) : null; if (!str(b.title)) throw new Error('Add a title'); await db.put('resources', id, { ...(old || {}), id, title: str(b.title, 120), url: url(b.url, 'The link'), desc: str(b.desc, 300), kind: str(b.kind, 30) || 'Link', order: Number(b.order) || old?.order || 99 }); break; }
+        case 'resource.del': await db.del('resources', str(b.id, 60)); break;
+        case 'member.create': {
+          const name = str(b.name, 80), email = str(b.email, 120).toLowerCase(), pw = String(b.password || '');
+          if (!name) throw new Error('Add their name'); if (!isEmail(email)) throw new Error('Enter a valid email'); if (pw.length < 8) throw new Error('Give them a temporary password of at least 8 characters');
+          if ((await db.list('users')).some((x) => x.email === email)) throw new Error('That email already has an account');
+          const id = `u-${db.uid()}`;
+          await db.put('users', id, { id, email, name, role: 'member', hash: hashPassword(pw), city: str(b.city, 60), phone: str(b.phone, 30), comp: !!b.comp, createdAt: now, addedByAdmin: true, ...(b.agreed ? { agreedAt: now, agreedVersion: AGREEMENT_VERSION } : {}) });
+          for (const pid of Array.isArray(b.certified) ? b.certified.slice(0, 20) : []) { if (!(await db.get('programs', str(pid, 60)))) continue; const sid = `sub-${db.uid()}`; await db.put('submissions', sid, { id: sid, userId: id, programId: pid, url: '', note: 'Certified by admin', status: 'approved', createdAt: now, reviewedAt: now, feedback: '' }); }
+          break; }
+        case 'member.update': {
+          const t = await db.get('users', str(b.id, 60)); if (!t) throw new Error('Unknown member'); if (t.id === u.id && (b.suspended || b.role === 'member')) throw new Error('You cannot lock yourself out');
+          if ('comp' in b) t.comp = !!b.comp; if ('suspended' in b) t.suspended = !!b.suspended; if (b.role === 'admin' || b.role === 'member') t.role = b.role;
+          if (b.password) { if (String(b.password).length < 8) throw new Error('Use at least 8 characters'); t.hash = hashPassword(String(b.password)); t.sessionsAfter = Date.now(); }
+          await db.put('users', t.id, t); break; }
+        case 'reply.send': { const t = str(b.text, 2000); if (!t || !b.userId) throw new Error('Write a reply'); await db.put('messages', `msg-${db.uid()}`, { id: `msg-${db.uid()}`, userId: b.userId, from: 'admin', text: t, createdAt: now, read: false }); for (const m of (await db.list('messages')).filter((x) => x.userId === b.userId && x.from === 'member' && !x.read)) await db.put('messages', m.id, { ...m, read: true }); break; }
+        case 'settings.save': { const cur = await settings(); await db.put('settings', 'app', { id: 'app', ...cur, price: str(b.price, 60), welcome: str(b.welcome, 400), agreement: str(b.agreement, 5000), prereqs: str(b.prereqs, 300), feePct: Math.min(100, Math.max(0, Number(b.feePct) || 0)), contactEmail: str(b.contactEmail, 120) }); break; }
+        case 'venue.save': {
+          const id = b.id || `ven-${db.uid()}`; const old = b.id ? await db.get('venues', id) : null; const name = str(b.name, 100), city = str(b.city, 60), address = str(b.address, 160), st = String(b.state || '').toUpperCase();
+          if (!name) throw new Error('Name the studio'); if (!address) throw new Error('Add the street address'); if (!city) throw new Error('Add the city'); if (!STATES[st]) throw new Error('Pick a state');
+          const cap = Math.floor(Number(b.capacity)); if (!(cap >= 1 && cap <= 5000)) throw new Error('Set the maximum attendance (1 to 5,000)');
+          if (old && cap < old.capacity) { const snap = await snapshot(); for (const c of snap.classes.filter((x) => x.venueId === id && !x.canceled && Date.parse(x.start) > Date.now())) if (availability(c, snap).sold > cap) throw new Error(`"${c.title}" already has more tickets sold than ${cap}. Lower the limit after that class.`); }
+          const all = await db.list('venues'); let slug = old?.slug; if (!slug) { const base = slugify(`${name} ${city}`) || 'studio'; slug = base; let n = 2; while (all.some((x) => x.slug === slug)) slug = `${base}-${n++}`; }
+          await db.put('venues', id, { ...(old || { createdAt: now }), id, slug, name, address, city, state: st, zip: str(b.zip, 10), tz: TZ_OPTIONS.some((z) => z[0] === b.tz) ? b.tz : (STATE_TZ[st] || DEFAULT_TZ), capacity: cap, website: url(b.website, 'The website link'), phone: str(b.phone, 30), notes: str(b.notes, 300), active: b.active !== false }); break; }
+        case 'venue.del': {
+          const v = await db.get('venues', str(b.id, 60)); if (!v) break;
+          if ((await db.list('classes')).some((c) => c.venueId === v.id)) { await db.put('venues', v.id, { ...v, active: false }); out.message = 'This studio has classes on record, so it was hidden instead of deleted.'; } else await db.del('venues', v.id); break; }
+        case 'popup.save': {
+          const id = b.id || `cls-pop-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (b.id && !old?.popup) throw new Error('Unknown pop-up event');
+          const title = str(b.title, 100); if (!title) throw new Error('Name the event'); const ins = await db.get('users', str(b.instructorId, 60)); if (!ins || ins.suspended) throw new Error('Choose the instructor from the list');
+          const vname = str(b.venueName, 100), address = str(b.address, 160), city = str(b.city, 60), st = String(b.state || '').toUpperCase(); if (!vname) throw new Error('Add the location name'); if (!address) throw new Error('Add the street address'); if (!city) throw new Error('Add the city'); if (!STATES[st]) throw new Error('Pick a state');
+          const cap = Math.floor(Number(b.capacity)); if (!(cap >= 1 && cap <= 5000)) throw new Error('Set the capacity (1 to 5,000)');
+          const LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/; if (!LOCAL.test(String(b.start || ''))) throw new Error('Pick the date and start time'); if (b.end && !LOCAL.test(String(b.end))) throw new Error('Pick a valid end time');
+          const tz = TZ_OPTIONS.some((z) => z[0] === b.tz) ? b.tz : (STATE_TZ[st] || DEFAULT_TZ); const start = zonedToUtcISO(b.start, tz), end = b.end ? zonedToUtcISO(b.end, tz) : '';
+          if (end && Date.parse(end) <= Date.parse(start)) throw new Error('The end time must be after the start time'); if ((!old || old.start !== start) && Date.parse(start) < Date.now()) throw new Error('Pick a start time in the future');
+          const cents = Math.round((Number(b.price) || 0) * 100); if (!(cents === 0 || (cents >= 50 && cents <= 20000))) throw new Error('Ticket price must be $0 (free) or between $0.50 and $200');
+          if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (start !== old.start || end !== (old.end || '')) throw new Error('Tickets are already sold, so the date and time are locked. Cancel the event to refund buyers.'); if (cap < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} or more.`); } }
+          const vid = old?.venueId || `ven-pop-${db.uid()}`; const oldV = await db.get('venues', vid);
+          await db.put('venues', vid, { ...(oldV || { createdAt: now }), id: vid, slug: oldV?.slug || vid, name: vname, address, city, state: st, zip: str(b.zip, 10), tz, capacity: cap, website: '', phone: '', notes: '', active: true, popup: true });
+          await db.put('classes', id, { ...(old || {}), id, popup: true, userId: ins.id, title, tagline: str(b.tagline, 140), programId: str(b.programId, 60), start, end, mode: 'in-person', venueId: vid, tz, spots: 0, price: cents, link: '', notes: str(b.notes, 2000), public: b.public !== false }); break; }
+        case 'popup.del': {
+          const c = await db.get('classes', str(b.id, 80)); if (!c?.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
+          if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This event has ticket orders. Use Cancel & refund under Classes & tickets.');
+          await db.delMany('tickets', (await db.list('tickets')).filter((t) => t.classId === c.id).map((t) => t.id)); await db.delMany('orders', os.map((o) => o.id)); await db.del('classes', c.id); if (c.venueId) await db.del('venues', c.venueId); break; }
+        case 'class.cancel': { const r = await cancelClass(str(b.id, 80)); out.refunded = r.refunded; out.failed = r.failed; break; }
+        case 'order.refund': await refundOrder(str(b.id, 80)); break;
+        case 'review': {
+          const s = await db.get('submissions', str(b.id, 60)); if (!s) throw new Error('Unknown submission'); if (!['approved', 'changes'].includes(b.status)) throw new Error('Choose approve or request changes');
+          await db.put('submissions', s.id, { ...s, status: b.status, feedback: str(b.feedback, 2000), reviewedAt: now }); break; }
+      }
+      return NextResponse.json({ ok: true, ...out });
+    }
+    // ----- members (active subscription or free pass) -----
+    if (!hasAccess(u)) return bad('Membership required', 402);
+    const now = new Date().toISOString();
+    switch (op) {
+      case 'progress': { const v = await db.get('videos', str(b.videoId, 60)); if (!v || v.published === false) throw new Error('Unknown video'); const id = `${u.id}_${v.id}`; await db.put('progress', id, { id, userId: u.id, videoId: v.id, done: !!b.done, at: now }); break; }
+      case 'submit': {
+        const prog = await db.get('programs', str(b.programId, 60)); if (!prog) throw new Error('Pick a program');
+        const subs = (await db.list('submissions')).filter((s) => s.userId === u.id && s.programId === prog.id);
+        if (subs.some((s) => s.status === 'approved')) throw new Error('You are already certified in this program');
+        if (subs.some((s) => s.status === 'pending')) throw new Error('You already have a video waiting for review');
+        const link = url(b.url, 'Your video link'); if (!link) throw new Error('Add the link to your video');
+        const id = `sub-${db.uid()}`; await db.put('submissions', id, { id, userId: u.id, programId: prog.id, url: link, note: str(b.note, 1000), status: 'pending', createdAt: now }); break; }
+      case 'profile': {
+        const cpr = b.cprUrl !== undefined ? url(b.cprUrl, 'The CPR/AED link') : u.cpr?.url || ''; const n = str(b.name, 80); if (!n) throw new Error('Add your name');
+        await db.put('users', u.id, { ...u, name: n, bio: str(b.bio, 800), photo: url(b.photo, 'The photo link'), city: str(b.city, 60), phone: str(b.phone, 30), listed: b.listed !== false, cpr: cpr ? { url: cpr, at: u.cpr?.url === cpr ? u.cpr.at : now } : null }); break; }
+      case 'class.save': {
+        const id = b.id || `cls-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (old && old.userId !== u.id) throw new Error('That is not your class'); if (old?.popup) throw new Error('Pop-up events are managed by TwerkDivas'); if (old?.canceled) throw new Error('This class was canceled');
+        const title = str(b.title, 100); if (!title) throw new Error('Name the class'); const mode = b.mode === 'online' ? 'online' : 'in-person';
+        const LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/; if (!LOCAL.test(String(b.start || ''))) throw new Error('Pick a valid start time'); if (b.end && !LOCAL.test(String(b.end))) throw new Error('Pick a valid end time');
+        let tz = DEFAULT_TZ, venue = null; if (mode === 'in-person') { venue = await db.get('venues', str(b.venueId, 60)); if (!venue || venue.active === false) throw new Error('Choose a partner studio for in-person classes'); tz = venue.tz || STATE_TZ[venue.state] || DEFAULT_TZ; } else if (TZ_OPTIONS.some((z) => z[0] === b.tz)) tz = b.tz;
+        const start = zonedToUtcISO(b.start, tz), end = b.end ? zonedToUtcISO(b.end, tz) : ''; if (end && Date.parse(end) <= Date.parse(start)) throw new Error('The end time must be after the start time');
+        if ((!old || old.start !== start) && Date.parse(start) < Date.now()) throw new Error('Pick a start time in the future');
+        const cents = Math.round((Number(b.price) || 0) * 100); if (!(cents === 0 || (cents >= 50 && cents <= 20000))) throw new Error('Ticket price must be $0 (free) or between $0.50 and $200');
+        const pub = b.public !== false; let venueId = '', spots = Math.max(0, Math.min(1000, Math.floor(Number(b.spots) || 0)));
+        if (mode === 'in-person') { const v = venue; venueId = v.id; if (spots > v.capacity) throw new Error(`${v.name} holds ${v.capacity} people at most. Use ${v.capacity} spots or fewer.`); }
+        else if (!spots) throw new Error('Set how many spots the online class has (up to 1,000)');
+        const programId = str(b.programId, 60);
+        if (pub) { if (!programId || !(await db.get('programs', programId))) throw new Error('Choose the program for a public class'); if (!admin && !(await db.list('submissions')).some((x) => x.userId === u.id && x.programId === programId && x.status === 'approved')) throw new Error('You need to be certified in this program before you can sell tickets for it. You can save it as a private class for now.'); }
+        if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (venueId !== (old.venueId || '') || start !== old.start || end !== (old.end || '') || mode !== old.mode) throw new Error('Tickets are already sold, so the time, place and type are locked. Ask TwerkDivas to cancel the class if it cannot go ahead.'); if (spots > 0 && spots < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} spots or more.`); if (!pub) throw new Error('Tickets are already sold, so this class has to stay public.'); } }
+        await db.put('classes', id, { ...(old || {}), id, userId: u.id, title, programId, start, end, mode, venueId, tz, spots, price: cents, link: mode === 'online' ? url(b.link, 'The class link') : '', notes: str(b.notes, 500), public: pub }); break; }
+      case 'class.del': {
+        const c = await db.get('classes', str(b.id, 60)); if (!c || c.userId !== u.id || c.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
+        if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This class has ticket orders. Ask TwerkDivas to cancel it so buyers are refunded.');
+        await db.delMany('tickets', (await db.list('tickets')).filter((t) => t.classId === c.id).map((t) => t.id)); await db.delMany('orders', os.map((o) => o.id)); await db.del('classes', c.id); break; }
+      case 'checkin': {
+        const tickets = await db.list('tickets'); const code = String(b.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const t = b.id ? tickets.find((x) => x.id === b.id) : code && tickets.find((x) => x.code === code); if (!t) throw new Error('No ticket found with that code');
+        const c = await db.get('classes', t.classId); if (!c || (c.userId !== u.id && !admin)) throw new Error('That ticket is for a different class');
+        if (c.canceled) throw new Error('This class was canceled'); if (t.status !== 'valid') throw new Error(t.status === 'void' ? 'This ticket was canceled or refunded' : 'This ticket is not paid yet');
+        if (b.undo) { const { checkedInAt, checkedInBy, ...rest } = t; await db.put('tickets', t.id, rest); out.name = t.name; break; }
+        if (t.checkedInAt) throw new Error(`${t.name} was already checked in at ${new Date(t.checkedInAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`);
+        const [s0, e0] = slot(c); const nowMs = Date.now(); if (!admin && (nowMs < s0 - 4 * 36e5 || nowMs > e0 + 12 * 36e5)) throw new Error('Check-in opens 4 hours before class and closes 12 hours after it ends');
+        await db.put('tickets', t.id, { ...t, checkedInAt: now, checkedInBy: u.id }); out.name = t.name; out.class = c.title; break; }
+      case 'agree': await db.put('users', u.id, { ...u, agreedAt: now, agreedVersion: AGREEMENT_VERSION }); break;
+      case 'message': { const t = str(b.text, 2000); if (!t) throw new Error('Write a message'); const id = `msg-${db.uid()}`; await db.put('messages', id, { id, userId: u.id, from: 'member', text: t, createdAt: now, read: false }); break; }
+      default: return bad('Unknown action');
+    }
+    return NextResponse.json({ ok: true, ...out });
+  } catch (e) { return bad(e.message); }
+}
