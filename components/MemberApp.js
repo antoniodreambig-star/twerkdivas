@@ -2,11 +2,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Player from './Player';
 import Icon from './Icon';
+import Earnings from './Earnings';
+import Scanner from './Scanner';
 import { Modal, useAct, when, day } from './ui';
 import { fmtWhen, fmtTime, utcToZonedInput } from '@/lib/tz';
 import { TZ_OPTIONS } from '@/lib/us';
 
-const NAV = [['home', 'home', 'Home'], ['learn', 'play', 'Learn'], ['cert', 'award', 'Certify'], ['classes', 'cal', 'Classes'], ['resources', 'book', 'Resources'], ['people', 'users', 'Community'], ['support', 'chat', 'Support'], ['me', 'user', 'Profile']];
+const NAV = [['home', 'home', 'Home'], ['learn', 'play', 'Learn'], ['cert', 'award', 'Certify'], ['classes', 'cal', 'Classes'], ['earn', 'award', 'Earnings'], ['resources', 'book', 'Resources'], ['people', 'users', 'Community'], ['support', 'chat', 'Support'], ['me', 'user', 'Profile']];
 export default function MemberApp({ isAdmin }) {
   const [d, setD] = useState(null); const [tab, setTab] = useState('home'); const [fatal, setFatal] = useState('');
   const load = useCallback(async () => { const r = await fetch('/api/d?view=member'); const j = await r.json().catch(() => ({})); if (r.status === 401) location.href = '/login'; else if (r.status === 402) location.href = '/join'; else if (!r.ok) setFatal(j.error || 'Could not load'); else setD(j); }, []);
@@ -17,7 +19,7 @@ export default function MemberApp({ isAdmin }) {
   const unread = d.messages.filter((m) => m.from === 'admin' && !m.read).length;
   const P = { d, load, go: setTab };
   return (<div className="app"><header className="appbar"><div className="wrap bar2"><img src="/logo.svg" alt="TwerkDivas" /><div className="row">{isAdmin && <a className="btn sm" href="/admin">Admin console</a>}<span className="who">{d.me.name.split(' ')[0]}</span><button className="btn sm" onClick={out}>Sign out</button></div></div></header>
-    <main className="stage">{tab === 'home' && <Home {...P} />}{tab === 'learn' && <Learn {...P} />}{tab === 'cert' && <Certify {...P} />}{tab === 'classes' && <Classes {...P} />}{tab === 'resources' && <Resources {...P} />}{tab === 'people' && <People {...P} />}{tab === 'support' && <Support {...P} />}{tab === 'me' && <Profile {...P} />}</main>
+    <main className="stage">{tab === 'home' && <Home {...P} />}{tab === 'learn' && <Learn {...P} />}{tab === 'cert' && <Certify {...P} />}{tab === 'classes' && <Classes {...P} />}{tab === 'earn' && <Earnings {...P} />}{tab === 'resources' && <Resources {...P} />}{tab === 'people' && <People {...P} />}{tab === 'support' && <Support {...P} />}{tab === 'me' && <Profile {...P} />}</main>
     <nav className="dock" aria-label="Main">{NAV.map(([k, i, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); load(); window.scrollTo({ top: 0 }); }}><Icon n={i} /><span>{l}</span>{k === 'support' && unread > 0 && <b className="dot">{unread}</b>}</button>)}</nav></div>);
 }
 
@@ -59,7 +61,7 @@ function Certify({ d, load }) {
   return (<><h1>Get certified</h1><p className="mute">Teach the routine on video, submit the link, and the TwerkDivas team will review it. Approved instructors earn a certified badge and appear in the directory.</p>{note}
     <div className="card" style={{ margin: '14px 0' }}><b>Before you submit</b><p style={{ margin: '6px 0' }}>{d.me.agreedAt ? '✅' : '⬜'} Instructor agreement accepted<br />{d.me.cpr ? '✅' : '⬜'} {d.settings.prereqs} — add it under My profile</p></div>
     <div className="grid">{d.programs.map((p) => { const s = st(p.id); return (<div key={p.id} className="card"><h3 style={{ fontSize: 19 }}>{p.title}</h3>
-      {s?.status === 'approved' && <p><span className="tag ok">✓ Certified</span></p>}{s?.status === 'pending' && <p><span className="tag cyan">In review</span></p>}
+      {(() => { const vs = d.videos.filter((v) => v.programId === p.id); const n = vs.filter((v) => d.progress.includes(v.id)).length; return vs.length ? <div style={{ margin: '6px 0' }}><div className="meter" aria-label={`${n} of ${vs.length} lessons watched`}><i style={{ width: `${Math.round((n / vs.length) * 100)}%` }} /></div><div className="small mute">{n} of {vs.length} lessons watched</div></div> : null; })()}{s?.status === 'approved' && <p><span className="tag ok">✓ Certified</span> <a className="btn sm" href={`/certificate/${s.id}`} target="_blank" rel="noopener noreferrer">Print certificate</a></p>}{s?.status === 'pending' && <p><span className="tag cyan">In review</span></p>}
       {s?.status === 'changes' && <div className="err"><b>Changes requested</b><p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{s.feedback || 'Please resubmit.'}</p></div>}
       {!s && <p className="small mute">Not submitted yet.</p>}</div>); })}</div>
     <h2>Submit a video</h2>
@@ -73,7 +75,7 @@ function Certify({ d, load }) {
 const $ = (c) => (c === 0 ? 'Free' : `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`);
 function Classes({ d, load }) {
   const { note, act } = useAct(load); const [edit, setEdit] = useState(null); const [roster, setRoster] = useState(null); const [copied, setCopied] = useState('');
-  const blank = { title: '', programId: d.certs[0]?.programId || '', start: '', end: '', mode: 'in-person', venueId: d.venues[0]?.id || '', tz: 'America/Chicago', link: '', spots: 0, price: 0, notes: '', public: true };
+  const blank = { title: '', programId: d.certs[0]?.programId || '', start: '', end: '', mode: 'in-person', venueId: d.venues[0]?.id || '', tz: 'America/Chicago', link: '', spots: 0, price: 0, notes: '', public: true, repeatWeeks: 1 };
   const up = d.classes.filter((c) => new Date(c.start) >= new Date(Date.now() - 36e5)); const past = d.classes.filter((c) => !up.includes(c));
   const pn = (id) => d.programs.find((p) => p.id === id)?.title || ''; const vn = (id) => d.venues.find((v) => v.id === id);
   const certIds = d.certs.map((c) => c.programId); const venue = edit && vn(edit.venueId);
@@ -96,6 +98,7 @@ function Classes({ d, load }) {
         : <><label>Partner studio</label>{d.venues.length === 0 ? <p className="small mute">No partner studios yet. Ask TwerkDivas to add one.</p> : <select disabled={edit.sold > 0} value={edit.venueId} onChange={(e) => setEdit({ ...edit, venueId: e.target.value })}>{d.venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}, {v.state} (max {v.capacity})</option>)}</select>}</>}
       <div className="row"><div className="grow"><label>Starts{edit.mode === 'in-person' && venue ? ` (${venue.city} time)` : ''}</label><input type="datetime-local" disabled={edit.sold > 0} value={edit.start} onChange={(e) => setEdit({ ...edit, start: e.target.value })} /></div><div className="grow"><label>Ends</label><input type="datetime-local" disabled={edit.sold > 0} value={edit.end} onChange={(e) => setEdit({ ...edit, end: e.target.value })} /></div></div>
       <div className="row"><div className="grow"><label>Ticket price ($, 0 = free)</label><input type="number" min="0" step="0.50" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} /></div><div className="grow"><label>{edit.mode === 'in-person' && venue ? `Spots (max ${venue.capacity}, 0 = full room)` : 'Spots (up to 1,000)'}</label><input type="number" min="0" value={edit.spots} onChange={(e) => setEdit({ ...edit, spots: e.target.value })} /></div></div>
+      {!edit.id && <><label>Repeat weekly</label><select value={edit.repeatWeeks} onChange={(e) => setEdit({ ...edit, repeatWeeks: Number(e.target.value) })}><option value={1}>Just this once</option>{[2, 4, 6, 8, 12].map((n) => <option key={n} value={n}>Every week for {n} weeks</option>)}</select>{edit.repeatWeeks > 1 && <p className="small mute" style={{ margin: '4px 0 0' }}>Creates {edit.repeatWeeks} separate classes at the same local time. Each one sells tickets on its own.</p>}</>}
       <label>Notes for attendees</label><textarea value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} placeholder="What to wear, what to bring..." />
       <label style={{ display: 'flex', gap: 8, color: 'var(--ink)' }}><input type="checkbox" checked={edit.public} onChange={(e) => setEdit({ ...edit, public: e.target.checked })} /> Sell tickets on the TwerkDivas website</label>
       {note}<button className="btn primary" style={{ marginTop: 14 }} onClick={async () => { if (await act('class.save', { ...edit, spots: Number(edit.spots) || 0 }, 'Saved')) setEdit(null); }}>Save class</button></Modal>}</>);
@@ -108,7 +111,7 @@ function ClassRow({ c, pn, vn, past, copied, onCopy, onRoster, onEdit, onDel }) 
     <div className="row" style={{ marginTop: 8 }}>{c.public !== false && !c.canceled && <><button className="btn sm primary" onClick={onRoster}>Roster &amp; check-in</button><button className="btn sm" onClick={onCopy}>{copied ? 'Copied!' : 'Copy ticket link'}</button></>}{!past && !c.canceled && <button className="btn sm" onClick={onEdit}>Edit</button>}{!past && !c.canceled && <button className="btn sm danger" onClick={onDel}>Delete</button>}</div></div>);
 }
 export function RosterModal({ id, onClose }) {
-  const [r, setR] = useState(null); const [code, setCode] = useState(''); const { note, act, setErr, setMsg } = useAct(async () => {});
+  const [r, setR] = useState(null); const [code, setCode] = useState(''); const [cam, setCam] = useState(false); const { note, act, setErr, setMsg } = useAct(async () => {});
   const refresh = useCallback(() => fetch(`/api/d?view=roster&classId=${id}`).then((x) => x.json()).then(setR), [id]); useEffect(() => { refresh(); }, [refresh]);
   async function go(body, ok) { setErr(''); setMsg(''); if (await act('checkin', body, ok)) await refresh(); }
   if (!r) return <Modal title="Roster" onClose={onClose}><p className="mute">Loading…</p></Modal>; if (r.error) return <Modal title="Roster" onClose={onClose}><div className="err">{r.error}</div></Modal>;
@@ -116,7 +119,7 @@ export function RosterModal({ id, onClose }) {
   return (<Modal title="Roster & check-in" onClose={onClose}>
     <b>{r.cls.title}</b><div className="small mute">{fmtWhen(r.cls.start, tz)}{r.cls.venue ? ` · ${r.cls.venue}` : ''}</div>
     <div className="row" style={{ margin: '12px 0', gap: 10 }}><div className="stat"><b>{r.checkedIn}</b>checked in</div><div className="stat"><b>{r.sold}</b>tickets sold</div><div className="stat"><b>{r.cap || '∞'}</b>max attendance</div></div>
-    <label>Enter or scan a ticket code</label><div className="row"><input className="grow" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === 'Enter' && code) go({ code }, (j) => `${j.name} is checked in`).then(() => setCode('')); }} placeholder="e.g. 7KQ2M9XD" autoCapitalize="characters" /><button className="btn primary" disabled={!code} onClick={async () => { await go({ code }, (j) => `${j.name} is checked in`); setCode(''); }}>Check in</button></div>
+    <label>Enter or scan a ticket code</label><div className="row"><input className="grow" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === 'Enter' && code) go({ code }, (j) => `${j.name} is checked in`).then(() => setCode('')); }} placeholder="e.g. 7KQ2M9XD" autoCapitalize="characters" /><button className="btn primary" disabled={!code} onClick={async () => { await go({ code }, (j) => `${j.name} is checked in`); setCode(''); }}>Check in</button><button className="btn" onClick={() => setCam(!cam)}>{cam ? 'Hide camera' : 'Scan with camera'}</button></div>{cam && <Scanner onClose={() => setCam(false)} onCode={(c) => go({ code: c }, (j) => `${j.name} is checked in`)} />}
     {note}<h3 style={{ marginTop: 16 }}>Attendees</h3>
     <div style={{ display: 'grid', gap: 6 }}>{r.tickets.length === 0 && <p className="mute">No tickets sold yet.</p>}{r.tickets.map((t) => <div className="row card" key={t.id} style={{ padding: '8px 12px' }}><div className="grow"><b>{t.name}</b><div className="small mute">{t.code} · {t.email}</div></div>{t.checkedInAt ? <><span className="tag ok">In {fmtTime(t.checkedInAt, tz)}</span><button className="btn sm" onClick={() => go({ id: t.id, undo: true }, 'Check-in undone')}>Undo</button></> : <button className="btn sm primary" onClick={() => go({ id: t.id }, `${t.name} is checked in`)}>Check in</button>}</div>)}</div></Modal>);
 }
@@ -141,12 +144,14 @@ function Support({ d, load }) {
 }
 
 function Profile({ d, load }) {
-  const m = d.me; const { note, act } = useAct(load); const [f, setF] = useState({ name: m.name, bio: m.bio, photo: m.photo, city: m.city, phone: m.phone, listed: m.listed, cprUrl: m.cpr?.url || '' });
+  const m = d.me; const { note, act } = useAct(load); const [f, setF] = useState({ name: m.name, bio: m.bio, photo: m.photo, city: m.city, phone: m.phone, listed: m.listed, cprUrl: m.cpr?.url || '', instagram: m.instagram || '', tiktok: m.tiktok || '', website: m.website || '', specialties: m.specialties || '', cities: m.cities || '' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   async function portal() { const r = await fetch('/api/billing/portal', { method: 'POST' }); const j = await r.json().catch(() => ({})); if (j.url) location.href = j.url; else alert(j.error || 'Could not open billing'); }
   return (<><h1>My profile</h1>{note}<div className="card">
     <label>Name</label><input value={f.name} onChange={set('name')} /><label>City</label><input value={f.city} onChange={set('city')} /><label>Phone (private)</label><input value={f.phone} onChange={set('phone')} />
     <label>Short bio</label><textarea value={f.bio} onChange={set('bio')} /><label>Photo link (https)</label><input value={f.photo} onChange={set('photo')} />
+    <label>Specialties (shown on your public page)</label><input value={f.specialties} onChange={set('specialties')} placeholder="Twerk cardio, barre, beginners" /><label>Other cities you teach in</label><input value={f.cities} onChange={set('cities')} placeholder="Killeen, Austin" />
+    <div className="row"><div className="grow"><label>Instagram handle</label><input value={f.instagram} onChange={set('instagram')} placeholder="yourname" /></div><div className="grow"><label>TikTok handle</label><input value={f.tiktok} onChange={set('tiktok')} placeholder="yourname" /></div></div><label>Website (https)</label><input value={f.website} onChange={set('website')} placeholder="https://..." />
     <label>{d.settings.prereqs}</label><input value={f.cprUrl} onChange={set('cprUrl')} placeholder="https://..." />
     <label style={{ display: 'flex', gap: 8, color: 'var(--ink)' }}><input type="checkbox" checked={f.listed} onChange={set('listed')} /> List me in the instructor directory once certified</label>
     <button className="btn primary" style={{ marginTop: 14 }} onClick={() => act('profile', f, 'Profile saved')}>Save profile</button></div>

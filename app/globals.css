@@ -124,3 +124,14 @@ a.cls{display:flex;gap:16px;align-items:center;padding:14px 18px;background:#fff
 .popbuy{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:12px;padding-left:22px;border-left:2px dashed var(--line)}.popbuy .price{font:900 46px 'Big Shoulders Display','Arial Narrow',Impact,sans-serif;background:linear-gradient(90deg,var(--pink),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
 .popgrid{display:grid;gap:16px}.popgrid .popcard{grid-template-columns:80px 1fr}.popgrid .popbuy{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;border-left:0;border-top:2px dashed var(--line);padding:14px 0 0}
 @media(max-width:760px){.popcard{grid-template-columns:70px 1fr}.popcard .popbuy{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;border-left:0;border-top:2px dashed var(--line);padding:14px 0 0}.pophero{padding:30px 22px}}
+
+/* ---- certificate ---- */
+.certpage{background:#fff;min-height:100vh;padding:12px}
+.cert{max-width:980px;margin:0 auto;aspect-ratio:1.414;background:linear-gradient(135deg,#2A0F6B,#6D28FF 55%,#FF2D8A);padding:16px;border-radius:14px}
+.certin{height:100%;background:#fff;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 40px;gap:6px}
+.certh{font-size:clamp(28px,5vw,54px);color:var(--deep);margin:4px 0}
+.certname{font-family:'Big Shoulders Display','Arial Narrow',sans-serif;font-size:clamp(34px,7vw,72px);font-weight:800;color:var(--pink);line-height:1.05}
+.certprog{font-size:clamp(20px,3vw,32px);font-weight:700;color:var(--violet2)}
+.certfoot{display:flex;gap:48px;margin-top:22px}.certfoot div{display:flex;flex-direction:column}.certfoot span{font-size:12px;color:var(--mute)}
+@media print{body{background:#fff!important}.noprint,.appbar,.dock,.pubnav{display:none!important}.certpage{padding:0}.cert{max-width:none;border-radius:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:landscape;margin:8mm}}
+.statrow{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}

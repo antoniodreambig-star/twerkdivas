@@ -9,6 +9,11 @@ import { str } from '@/lib/rules';
 import { STATES, slugify, STATE_TZ, TZ_OPTIONS, DEFAULT_TZ } from '@/lib/us';
 import { zonedToUtcISO } from '@/lib/tz';
 import { snapshot, availability, slot, refundOrder, cancelClass, maskEmail } from '@/lib/tickets';
+import { healthChecks, setupSummary } from '@/lib/health';
+import { analytics, earningsFor } from '@/lib/reports';
+import { runBackup, listBackups } from '@/lib/backup';
+import { unsubscribe } from '@/lib/subscribers';
+const addDays = (local, n) => { const [d, t] = local.split('T'); const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return `${x.toISOString().slice(0, 10)}T${t}`; };
 
 const bad = (m, s = 400) => NextResponse.json({ error: m }, { status: s });
 const url = (v, label) => { const x = str(v, 600); if (!x) return ''; const c = cleanUrl(x); if (!c) throw new Error(`${label} must be a full https:// link`); return c; };
@@ -18,9 +23,14 @@ export async function GET(req) {
   const u = await currentUser(); if (!u) return bad('Sign in first', 401);
   const view = new URL(req.url).searchParams.get('view');
   if (view === 'admin') return u.role === 'admin' ? NextResponse.json(await adminView()) : bad('Admins only', 403);
+  if (view === 'health') return u.role === 'admin' ? NextResponse.json({ checks: await healthChecks(), setup: setupSummary() }) : bad('Admins only', 403);
+  if (view === 'analytics') return u.role === 'admin' ? NextResponse.json(await analytics()) : bad('Admins only', 403);
+  if (view === 'audience') { if (u.role !== 'admin') return bad('Admins only', 403); const l = (await db.list('subscribers')).sort((a, b) => String(b.optInAt).localeCompare(String(a.optInAt))); return NextResponse.json({ subscribers: l, active: l.filter((x) => !x.unsubscribed).length }); }
+  if (view === 'backups') return u.role === 'admin' ? NextResponse.json({ backups: await listBackups() }) : bad('Admins only', 403);
   if (view === 'orders') { if (u.role !== 'admin') return bad('Admins only', 403); const cid = new URL(req.url).searchParams.get('classId'); return NextResponse.json({ orders: (await db.list('orders')).filter((o) => o.classId === cid).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).map((o) => ({ id: o.id, name: o.name, email: o.email, qty: o.qty, amount: o.amount, status: o.status, createdAt: o.createdAt, refundError: o.refundError || '' })) }); }
   if (view === 'me') { const s = await settings(); return NextResponse.json({ me: safeUser(u), access: hasAccess(u), settings: { price: s.price, welcome: s.welcome, agreement: s.agreement } }); }
   if (!hasAccess(u)) return bad('Membership required', 402);
+  if (view === 'earnings') return NextResponse.json(await earningsFor(u.id));
   if (view === 'roster') {
     const c = await db.get('classes', new URL(req.url).searchParams.get('classId') || ''); if (!c || (c.userId !== u.id && u.role !== 'admin')) return bad('Not your class', 403);
     const snap = await snapshot(); const a = availability(c, snap); const v = snap.vb[c.venueId];
@@ -35,7 +45,7 @@ export async function POST(req) {
   try {
     const b = await req.json(); const op = String(b.op || ''); const admin = u.role === 'admin'; const out = {};
     // ----- admin only -----
-    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup)\.|class\.cancel$)/.test(op) || op === 'review') {
+    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup)\.|class\.cancel$)/.test(op) || op === 'review' || /^(rating|payout|backup|audience)\./.test(op)) {
       if (!admin) return bad('Admins only', 403);
       const now = new Date().toISOString();
       switch (op) {
@@ -64,7 +74,13 @@ export async function POST(req) {
           if (b.password) { if (String(b.password).length < 8) throw new Error('Use at least 8 characters'); t.hash = hashPassword(String(b.password)); t.sessionsAfter = Date.now(); }
           await db.put('users', t.id, t); break; }
         case 'reply.send': { const t = str(b.text, 2000); if (!t || !b.userId) throw new Error('Write a reply'); await db.put('messages', `msg-${db.uid()}`, { id: `msg-${db.uid()}`, userId: b.userId, from: 'admin', text: t, createdAt: now, read: false }); for (const m of (await db.list('messages')).filter((x) => x.userId === b.userId && x.from === 'member' && !x.read)) await db.put('messages', m.id, { ...m, read: true }); break; }
-        case 'settings.save': { const cur = await settings(); await db.put('settings', 'app', { id: 'app', ...cur, price: str(b.price, 60), welcome: str(b.welcome, 400), agreement: str(b.agreement, 5000), prereqs: str(b.prereqs, 300), feePct: Math.min(100, Math.max(0, Number(b.feePct) || 0)), contactEmail: str(b.contactEmail, 120) }); break; }
+        case 'settings.save': { const cur = await settings(); await db.put('settings', 'app', { id: 'app', ...cur, price: str(b.price, 60), welcome: str(b.welcome, 400), agreement: str(b.agreement, 5000), prereqs: str(b.prereqs, 300), feePct: Math.min(100, Math.max(0, Number(b.feePct) || 0)), contactEmail: str(b.contactEmail, 120), cancelHours: Math.min(720, Math.max(0, Math.floor(Number(b.cancelHours ?? cur.cancelHours ?? 48)))), terms: str(b.terms ?? cur.terms, 20000), privacy: str(b.privacy ?? cur.privacy, 20000), refundPolicy: str(b.refundPolicy ?? cur.refundPolicy, 20000), waiver: str(b.waiver ?? cur.waiver, 20000),
+          packs: Array.isArray(b.packs) ? b.packs.slice(0, 6).map((p, i) => ({ id: str(p.id, 30) || `pk${i + 1}`, name: str(p.name, 60), credits: Math.floor(Number(p.credits)), price: Math.round((Number(p.price) || 0) * 100) })).filter((p) => { if (!p.name) return false; if (!(p.credits >= 2 && p.credits <= 50)) throw new Error(`Pack "${p.name}" needs 2 to 50 classes`); if (!(p.price >= 100 && p.price <= 100000)) throw new Error(`Pack "${p.name}" needs a price from $1 to $1,000`); return true; }) : (cur.packs || []) }); break; }
+        case 'rating.hide': { const r = await db.get('reviews', str(b.id, 80)); if (r) await db.put('reviews', r.id, { ...r, hidden: b.hidden !== false }); break; }
+        case 'payout.record': { const ins = await db.get('users', str(b.userId, 60)); if (!ins) throw new Error('Unknown instructor'); const cents = Math.round((Number(b.amount) || 0) * 100); if (!(cents > 0 && cents <= 10000000)) throw new Error('Enter the amount you paid out'); const id = `pay-${db.uid()}`; await db.put('payouts', id, { id, userId: ins.id, amount: cents, method: str(b.method, 40), note: str(b.note, 200), at: now }); break; }
+        case 'payout.del': await db.del('payouts', str(b.id, 60)); break;
+        case 'backup.run': out.backup = await runBackup({ email: b.email !== false }); break;
+        case 'audience.unsub': await unsubscribe(str(b.email, 120)); break;
         case 'venue.save': {
           const id = b.id || `ven-${db.uid()}`; const old = b.id ? await db.get('venues', id) : null; const name = str(b.name, 100), city = str(b.city, 60), address = str(b.address, 160), st = String(b.state || '').toUpperCase();
           if (!name) throw new Error('Name the studio'); if (!address) throw new Error('Add the street address'); if (!city) throw new Error('Add the city'); if (!STATES[st]) throw new Error('Pick a state');
@@ -114,7 +130,7 @@ export async function POST(req) {
         const id = `sub-${db.uid()}`; await db.put('submissions', id, { id, userId: u.id, programId: prog.id, url: link, note: str(b.note, 1000), status: 'pending', createdAt: now }); break; }
       case 'profile': {
         const cpr = b.cprUrl !== undefined ? url(b.cprUrl, 'The CPR/AED link') : u.cpr?.url || ''; const n = str(b.name, 80); if (!n) throw new Error('Add your name');
-        await db.put('users', u.id, { ...u, name: n, bio: str(b.bio, 800), photo: url(b.photo, 'The photo link'), city: str(b.city, 60), phone: str(b.phone, 30), listed: b.listed !== false, cpr: cpr ? { url: cpr, at: u.cpr?.url === cpr ? u.cpr.at : now } : null }); break; }
+        await db.put('users', u.id, { ...u, name: n, bio: str(b.bio, 800), photo: url(b.photo, 'The photo link'), city: str(b.city, 60), phone: str(b.phone, 30), listed: b.listed !== false, instagram: str(b.instagram, 60).replace(/^@/, ''), tiktok: str(b.tiktok, 60).replace(/^@/, ''), website: url(b.website, 'Your website link'), specialties: str(b.specialties, 200), cities: str(b.cities, 200), cpr: cpr ? { url: cpr, at: u.cpr?.url === cpr ? u.cpr.at : now } : null }); break; }
       case 'class.save': {
         const id = b.id || `cls-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (old && old.userId !== u.id) throw new Error('That is not your class'); if (old?.popup) throw new Error('Pop-up events are managed by TwerkDivas'); if (old?.canceled) throw new Error('This class was canceled');
         const title = str(b.title, 100); if (!title) throw new Error('Name the class'); const mode = b.mode === 'online' ? 'online' : 'in-person';
@@ -129,7 +145,10 @@ export async function POST(req) {
         const programId = str(b.programId, 60);
         if (pub) { if (!programId || !(await db.get('programs', programId))) throw new Error('Choose the program for a public class'); if (!admin && !(await db.list('submissions')).some((x) => x.userId === u.id && x.programId === programId && x.status === 'approved')) throw new Error('You need to be certified in this program before you can sell tickets for it. You can save it as a private class for now.'); }
         if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (venueId !== (old.venueId || '') || start !== old.start || end !== (old.end || '') || mode !== old.mode) throw new Error('Tickets are already sold, so the time, place and type are locked. Ask TwerkDivas to cancel the class if it cannot go ahead.'); if (spots > 0 && spots < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} spots or more.`); if (!pub) throw new Error('Tickets are already sold, so this class has to stay public.'); } }
-        await db.put('classes', id, { ...(old || {}), id, userId: u.id, title, programId, start, end, mode, venueId, tz, spots, price: cents, link: mode === 'online' ? url(b.link, 'The class link') : '', notes: str(b.notes, 500), public: pub }); break; }
+        const rec = { userId: u.id, title, programId, mode, venueId, tz, spots, price: cents, link: mode === 'online' ? url(b.link, 'The class link') : '', notes: str(b.notes, 500), public: pub };
+        const weeks = !old ? Math.min(12, Math.max(1, Math.floor(Number(b.repeatWeeks) || 1))) : 1;
+        if (weeks > 1) { const seriesId = `ser-${db.uid()}`; for (let i = 0; i < weeks; i++) { const cid = `cls-${db.uid()}`; await db.put('classes', cid, { ...rec, id: cid, seriesId, start: zonedToUtcISO(addDays(b.start, 7 * i), tz), end: b.end ? zonedToUtcISO(addDays(b.end, 7 * i), tz) : '' }); } out.created = weeks; break; }
+        await db.put('classes', id, { ...(old || {}), id, ...rec, start, end }); break; }
       case 'class.del': {
         const c = await db.get('classes', str(b.id, 60)); if (!c || c.userId !== u.id || c.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
         if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This class has ticket orders. Ask TwerkDivas to cancel it so buyers are refunded.');

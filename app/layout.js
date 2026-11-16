@@ -1,5 +1,5 @@
 import './globals.css';
-export const metadata = { title: 'TwerkDivas Instructor Academy', description: 'Learn the TwerkDivas routines, get certified, and teach.', manifest: '/manifest.webmanifest', icons: { icon: '/icon.svg' } };
+export const metadata = { metadataBase: new URL(process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')), openGraph: { siteName: 'TwerkDivas', type: 'website' }, title: 'TwerkDivas Instructor Academy', description: 'Learn the TwerkDivas routines, get certified, and teach.', manifest: '/manifest.webmanifest', icons: { icon: '/icon.svg' } };
 export const viewport = { themeColor: '#1B0A3C' };
 export default function Root({ children }) {
   return (<html lang="en"><head>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { publicPopups, settings } from '@/lib/data';
 import { fmtDay, fmtTime } from '@/lib/tz';
 import { money } from '@/components/ClassCard';
+import ShareButton from '@/components/ShareButton';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Pop-up events · TwerkDivas', description: 'Limited-capacity TwerkDivas pop-up events. Get your ticket before they sell out.' };
 function Card({ e, big }) {
@@ -14,7 +15,7 @@ function Card({ e, big }) {
       {big && e.notes && <p className="popnotes">{e.notes.slice(0, 280)}{e.notes.length > 280 ? '…' : ''}</p>}
       <div className="popinst">{e.instructorPhoto ? <img src={e.instructorPhoto} alt="" referrerPolicy="no-referrer" /> : <span className="av">{e.instructor.slice(0, 1)}</span>}<span className="small"><span className="mute">With </span><b><Link href={`/instructors/${e.instructorId}`}>{e.instructor}</Link></b></span></div>
       <div className="meter" aria-label={`${taken} of ${e.cap} spots taken`}><i style={{ width: `${pct}%` }} /></div><div className="small mute" style={{ marginTop: 4 }}>{out ? 'Sold out' : `${e.left} of ${e.cap} spots left`}</div></div>
-    <div className="popbuy"><span className="price">{money(e.price)}</span>{out ? <span className="btn" style={{ pointerEvents: 'none', opacity: .6 }}>Sold out</span> : <Link className="btn primary lg" href={`/classes/${e.id}`}>Get tickets</Link>}</div></article>);
+    <div className="popbuy"><span className="price">{money(e.price)}</span>{out ? <span className="btn" style={{ pointerEvents: 'none', opacity: .6 }}>Sold out</span> : <Link className="btn primary lg" href={`/classes/${e.id}`}>Get tickets</Link>}<ShareButton title={e.title} text={`${e.title} - TwerkDivas pop-up`} path={`/classes/${e.id}`} /></div></article>);
 }
 export default async function Page() {
   const list = await publicPopups(); const set = await settings(); const [first, ...rest] = list;

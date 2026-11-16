@@ -1,0 +1,12 @@
+'use client';
+import { useState } from 'react';
+export default function PackBuy({ packs }) {
+  const [sel, setSel] = useState(packs[0]?.id || ''); const [f, setF] = useState({ name: '', email: '', agree: false, optIn: false }); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
+  async function go(e) { e.preventDefault(); setErr(''); setBusy(true); const r = await fetch('/api/public/packs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ packId: sel, ...f }) }); const j = await r.json().catch(() => ({})); if (!r.ok || !j.url) { setErr(j.error || 'Something went wrong'); setBusy(false); return; } window.location.href = j.url; }
+  const money = (c) => `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`;
+  return (<form onSubmit={go}><div className="grid">{packs.map((p) => <label key={p.id} className="card feat" style={{ cursor: 'pointer', borderColor: sel === p.id ? 'var(--pink)' : undefined, borderWidth: 2 }}><input type="radio" name="pack" checked={sel === p.id} onChange={() => setSel(p.id)} style={{ display: 'none' }} /><span className="tag volt">{p.credits} classes</span><h3 style={{ margin: '10px 0 2px' }}>{p.name}</h3><div className="price" style={{ fontSize: 36 }}>{money(p.price)}</div><div className="small mute">{money(Math.round(p.price / p.credits))} per class</div></label>)}</div>
+    <div className="card" style={{ maxWidth: 480, marginTop: 18 }}><label>Your name</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required /><label>Email (your pack code is sent here)</label><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required />
+      <label style={{ display: 'flex', gap: 8, color: 'var(--ink)', marginTop: 14, fontWeight: 400 }}><input type="checkbox" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} required /><span className="small">I accept the <a href="/refunds" target="_blank">refund policy</a> and <a href="/terms" target="_blank">terms</a>.</span></label>
+      <label style={{ display: 'flex', gap: 8, color: 'var(--ink)', marginTop: 8, fontWeight: 400 }}><input type="checkbox" checked={f.optIn} onChange={(e) => setF({ ...f, optIn: e.target.checked })} /><span className="small">Email me about new classes (optional).</span></label>
+      {err && <div className="err">{err}</div>}<button className="btn primary lg" style={{ width: '100%', marginTop: 14 }} disabled={busy}>{busy ? 'One moment…' : 'Buy class pack'}</button></div></form>);
+}

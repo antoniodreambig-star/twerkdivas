@@ -32,3 +32,11 @@ Members-only app for TwerkDivas instructors: sign up, pay a monthly membership, 
 - Public site pages can be linked or embedded from the WordPress site (e.g. a button to `/studios`).
 - Have a lawyer review the instructor agreement. Insurance, music licensing and CPR requirements are your responsibility.
 - Local test: `npm install && npm run dev` (port 3200), data stored in `.data/db.json`.
+
+
+## Growth features
+- **Setup check** (Admin > Settings): shows which environment variables are missing (database, Stripe, webhook, email, cron).
+- **Policies**: starter Terms, Privacy, Refund and Waiver pages (editable in Settings). They are templates, so have an attorney review them. Buyers must accept the waiver at checkout; buyers can cancel themselves up to the configured number of hours before class.
+- **Stripe Connect payouts**: instructors link their bank on the Earnings tab; ticket sales then split automatically (platform fee kept). Others are paid by hand and logged under Analytics > Instructor payouts.
+- **Class packs**, **waitlist**, **weekly recurring classes** (up to 12 weeks), **reviews and ratings** (request email sent a few hours after class), **email list** (opt-in at checkout, CSV export, unsubscribe link), **analytics**, **share previews**, **WordPress widget** (copy code in Settings), **certificates** (`/certificate/<id>`, verify at `/verify/<code>`), **camera check-in**, and **daily backups** (`/api/cron/daily`, scheduled in vercel.json at 09:00 UTC; requires CRON_SECRET).
+- Marketing emails you send yourself must include an unsubscribe link: `/unsubscribe?email=...&t=...` (token from `unsubToken`).
