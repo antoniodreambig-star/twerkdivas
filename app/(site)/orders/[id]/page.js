@@ -29,5 +29,5 @@ export default async function Page({ params, searchParams }) {
     {paid && <div className="tickets">{tickets.filter((t) => t.status === 'valid').map((t) => <div className="ticket" key={t.id}><div className="qr" dangerouslySetInnerHTML={{ __html: qr[t.id] }} /><div><span className="small mute">Ticket code</span><div className="code">{t.code}</div><div>{t.name}</div>{t.checkedInAt ? <span className="tag ok">Checked in</span> : <span className="tag">Valid</span>}</div></div>)}</div>}
     {canCancel && <CancelOrder orderId={o.id} hours={hrs} refundable={!o.pass && o.amount > 0} />}
     {canRate && <ReviewForm orderId={o.id} />}{reviewed && <div className="ok">You rated this class. Thank you!</div>}
-    {paid && <p className="small mute">Show the QR or code at check-in. Tickets are non-transferable and sold only on this website. Lost them? <Link href="/tickets">Email them to me again</Link>.</p>}</>);
+    {paid && <p className="small mute">Show the QR or code at check-in. Tickets are non-transferable and sold only on this website. Lost them? <Link href="/bookings">See all my bookings</Link>.</p>}</>);
 }
