@@ -43,15 +43,16 @@ function Learn({ d, load }) {
   const list = useMemo(() => d.videos.filter((v) => v.programId === pid), [d, pid]); const doneSet = new Set(d.progress);
   const cur = vid && d.videos.find((v) => v.id === vid);
   const prog = d.programs.find((p) => p.id === pid);
-  return (<><h1>Learn</h1><div className="tabs">{d.programs.map((p) => { const t = d.videos.filter((v) => v.programId === p.id); const n = t.filter((v) => doneSet.has(v.id)).length; return <button key={p.id} className={pid === p.id ? 'on' : ''} onClick={() => { setPid(p.id); setVid(null); }}>{p.title} {t.length ? `(${n}/${t.length})` : ''}</button>; })}</div>
-    {prog && <p className="mute">{prog.blurb}</p>}{note}
+  const nWatched = list.filter((v) => doneSet.has(v.id)).length;
+  return (<><h1>Learn</h1><div className="chips" role="tablist" aria-label="Programs">{d.programs.map((p) => { const t = d.videos.filter((v) => v.programId === p.id); const n = t.filter((v) => doneSet.has(v.id)).length; return <button key={p.id} role="tab" aria-selected={pid === p.id} className={pid === p.id ? 'on' : ''} onClick={() => { setPid(p.id); setVid(null); }}>{p.title}{t.length ? <em>{n}/{t.length}</em> : null}</button>; })}</div>
+    {prog && !cur && <div className="card progcard"><h2>{prog.title}</h2>{prog.blurb && <p className="small mute progblurb">{prog.blurb}</p>}{list.length > 0 && <div style={{ marginTop: 14 }}><div className="meter" style={{ maxWidth: 'none' }} aria-label={`${nWatched} of ${list.length} videos watched`}><i style={{ width: `${Math.round((nWatched / list.length) * 100)}%` }} /></div><div className="small mute" style={{ marginTop: 6 }}>{nWatched} of {list.length} videos watched</div></div>}</div>}{note}
     {cur ? <div className="card"><button className="btn sm" onClick={() => setVid(null)}>← Back to list</button>
       <h2 style={{ marginTop: 14 }}>{cur.title}</h2><div className="row small mute" style={{ marginBottom: 10 }}><span className="tag cyan">{cur.level}</span>{cur.minutes ? <span>{cur.minutes} min</span> : null}</div>
       <Player url={cur.url} videoId={cur.id} who={`${d.me.name} · ${d.me.email}`} />
       {cur.music && <p><b>Music:</b> {cur.music}</p>}{cur.notes && <p style={{ whiteSpace: 'pre-wrap' }}>{cur.notes}</p>}
       <button className={`btn ${doneSet.has(cur.id) ? '' : 'volt'}`} onClick={() => act('progress', { videoId: cur.id, done: !doneSet.has(cur.id) })}>{doneSet.has(cur.id) ? '✓ Watched (tap to undo)' : 'Mark as watched'}</button></div>
-      : <div style={{ display: 'grid', gap: 10 }}>{list.length === 0 && <p className="mute">No videos in this program yet. Check back soon.</p>}
-        {list.map((v) => <div key={v.id} className="vid" onClick={() => setVid(v.id)}><span className={`chk ${doneSet.has(v.id) ? 'done' : ''}`}>{doneSet.has(v.id) ? '✓' : '▶'}</span><div className="grow"><b>{v.title}</b><div className="small mute">{v.level}{v.minutes ? ` · ${v.minutes} min` : ''}</div></div></div>)}</div>}</>);
+      : <div className="vlist">{list.length === 0 && <div className="empty">No videos in this program yet. Check back soon.</div>}
+        {list.map((v, i) => <button type="button" key={v.id} className={`vrow click ${doneSet.has(v.id) ? 'done' : ''}`} onClick={() => setVid(v.id)}><span className="vnum">{doneSet.has(v.id) ? '✓' : i + 1}</span><div className="vbody"><div className="vtitle">{v.title}</div><div className="vmeta"><span className="tag cyan">{v.level}</span>{v.minutes ? <span>{v.minutes} min</span> : null}{doneSet.has(v.id) && <span className="tag ok">Watched</span>}</div></div><span className="vgo" aria-hidden="true">›</span></button>)}</div>}</>);
 }
 
 function Certify({ d, load }) {

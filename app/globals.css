@@ -162,3 +162,13 @@ a.cls{display:flex;gap:16px;align-items:center;padding:14px 18px;background:#fff
   .vrow{grid-template-columns:30px 1fr;padding:14px}.vnum{width:30px;height:30px}
   .vact{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px;margin-top:4px;border-top:1px solid var(--line)}.vact .btn{min-height:40px;font-size:14px}
 }
+
+/* ---- member Learn rows + swipeable program cards ---- */
+button.vrow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:34px 1fr auto;gap:6px 14px;align-items:center;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);width:100%}
+.vrow.click{cursor:pointer;transition:all .15s}.vrow.click:hover,.vrow.click:focus-visible{border-color:var(--pink);transform:translateY(-1px)}.vrow.click:focus-visible{outline:3px solid rgba(109,40,255,.3)}
+.vrow.done .vnum{background:var(--ok);color:#fff}
+.vgo{font-size:26px;line-height:1;color:var(--violet);padding-right:2px}
+.hscroll{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 18px;margin:0 -2px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}.hscroll::-webkit-scrollbar{display:none}
+.hscroll .hcard{flex:0 0 min(300px,82%);scroll-snap-align:start}
+@media(min-width:900px){.hscroll{flex-wrap:wrap;overflow:visible}.hscroll .hcard{flex:1 1 260px}}
+@media(max-width:620px){button.vrow{grid-template-columns:30px 1fr auto;padding:14px}}
