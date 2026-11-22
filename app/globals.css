@@ -291,10 +291,11 @@ footer{border-top:3px solid var(--black);box-shadow:0 -1px 0 var(--hot)}
 
 /* ---- desktop scroll affordance for horizontal chip rows (programs / videos) ---- */
 .srow{position:relative}
-.srow-btn{position:absolute;top:calc(50% - 7px);transform:translateY(-50%);z-index:3;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line2);background:#fff;color:var(--ink);font:700 24px/1 'DM Sans',system-ui,sans-serif;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0 0 3px;box-shadow:0 6px 18px -6px rgba(11,11,16,.4);transition:all .15s}
+.srow-btn{position:absolute;top:23px;transform:translateY(-50%);z-index:3;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line2);background:#fff;color:var(--ink);font:700 22px/1 'DM Sans',system-ui,sans-serif;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0 0 3px;box-shadow:0 4px 12px -4px rgba(11,11,16,.3);transition:background .15s,color .15s,border-color .15s}
 .srow-btn:hover,.srow-btn:focus-visible{background:var(--pink);border-color:var(--pink);color:#fff;outline:none}
-.srow-btn.l{left:-6px}.srow-btn.r{right:-6px}
+.srow-btn.l{left:0}.srow-btn.r{right:0}
 @media(hover:hover) and (pointer:fine){
+  .srow{padding:0 46px}
   .srow-btn{display:inline-flex}
   .srow-track.chips{scrollbar-width:thin;scrollbar-color:var(--pink) rgba(11,11,16,.08);padding-bottom:16px}
   .srow-track.chips::-webkit-scrollbar{display:block;height:8px}
