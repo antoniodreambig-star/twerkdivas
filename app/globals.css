@@ -288,3 +288,16 @@ footer{border-top:3px solid var(--black);box-shadow:0 -1px 0 var(--hot)}
 .empty{border-color:var(--line2)}
 .top img,.bar2 img{flex:none}.top{gap:10px}
 @media(max-width:620px){.top{justify-content:center;padding:8px 0}.top .row{justify-content:center}}
+
+/* ---- desktop scroll affordance for horizontal chip rows (programs / videos) ---- */
+.srow{position:relative}
+.srow-btn{position:absolute;top:calc(50% - 7px);transform:translateY(-50%);z-index:3;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line2);background:#fff;color:var(--ink);font:700 24px/1 'DM Sans',system-ui,sans-serif;cursor:pointer;display:none;align-items:center;justify-content:center;padding:0 0 3px;box-shadow:0 6px 18px -6px rgba(11,11,16,.4);transition:all .15s}
+.srow-btn:hover,.srow-btn:focus-visible{background:var(--pink);border-color:var(--pink);color:#fff;outline:none}
+.srow-btn.l{left:-6px}.srow-btn.r{right:-6px}
+@media(hover:hover) and (pointer:fine){
+  .srow-btn{display:inline-flex}
+  .srow-track.chips{scrollbar-width:thin;scrollbar-color:var(--pink) rgba(11,11,16,.08);padding-bottom:16px}
+  .srow-track.chips::-webkit-scrollbar{display:block;height:8px}
+  .srow-track.chips::-webkit-scrollbar-track{background:rgba(11,11,16,.08);border-radius:999px}
+  .srow-track.chips::-webkit-scrollbar-thumb{background:var(--pink);border-radius:999px}
+}

@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Player from './Player';
+import ScrollRow from './ScrollRow';
 import Icon from './Icon';
 import { Modal, useAct, when, day } from './ui';
 import { fmtWhen, utcToZonedInput } from '@/lib/tz';
@@ -59,7 +60,7 @@ function Videos({ d, load }) {
   const addVideo = () => setV({ programId: pid, title: '', url: '', level: 'Beginner', minutes: '', notes: '', music: '', order: list.length + 1, published: true });
   return (<><div className="ph"><h1>Programs & videos</h1><button className="btn sm" onClick={() => setP({ title: '', blurb: '', order: d.programs.length + 1 })}>+ Program</button></div>{note}
     <p className="mute phint">Upload videos to Vimeo, YouTube (unlisted) or Mux, then paste the link here. Members watch inside the app.</p>
-    <div className="chips" role="tablist" aria-label="Programs">{d.programs.map((x) => <button key={x.id} role="tab" aria-selected={pid === x.id} className={pid === x.id ? 'on' : ''} onClick={() => setPid(x.id)}>{x.title}<em>{cnt(x.id)}</em></button>)}</div>
+    <ScrollRow className="chips" label="programs" role="tablist" aria-label="Programs">{d.programs.map((x) => <button key={x.id} role="tab" aria-selected={pid === x.id} className={pid === x.id ? 'on' : ''} onClick={() => setPid(x.id)}>{x.title}<em>{cnt(x.id)}</em></button>)}</ScrollRow>
     {cur && <div className="card progcard"><h2>{cur.title}</h2>{cur.blurb && <p className="small mute progblurb">{cur.blurb}</p>}
       <div className="progstats"><span><b>{list.length}</b> {list.length === 1 ? 'video' : 'videos'}</span><span><b>{list.length - drafts}</b> published</span>{drafts > 0 && <span><b>{drafts}</b> {drafts === 1 ? 'draft' : 'drafts'}</span>}</div>
       <div className="progactions"><button className="btn primary" onClick={addVideo}>+ Add video</button><button className="btn" onClick={() => setP(cur)}>Edit program</button><button className="btn danger" onClick={() => list.length ? alert('Remove or move its videos first') : confirm('Delete this program?') && act('program.del', { id: pid })}>Delete program</button></div></div>}

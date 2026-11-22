@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Player from './Player';
+import ScrollRow from './ScrollRow';
 import Icon from './Icon';
 import Earnings from './Earnings';
 import Scanner from './Scanner';
@@ -44,7 +45,7 @@ function Learn({ d, load }) {
   const cur = vid && d.videos.find((v) => v.id === vid);
   const prog = d.programs.find((p) => p.id === pid);
   const nWatched = list.filter((v) => doneSet.has(v.id)).length;
-  return (<><h1>Learn</h1><div className="chips" role="tablist" aria-label="Programs">{d.programs.map((p) => { const t = d.videos.filter((v) => v.programId === p.id); const n = t.filter((v) => doneSet.has(v.id)).length; return <button key={p.id} role="tab" aria-selected={pid === p.id} className={pid === p.id ? 'on' : ''} onClick={() => { setPid(p.id); setVid(null); }}>{p.title}{t.length ? <em>{n}/{t.length}</em> : null}</button>; })}</div>
+  return (<><h1>Learn</h1><ScrollRow className="chips" label="programs" role="tablist" aria-label="Programs">{d.programs.map((p) => { const t = d.videos.filter((v) => v.programId === p.id); const n = t.filter((v) => doneSet.has(v.id)).length; return <button key={p.id} role="tab" aria-selected={pid === p.id} className={pid === p.id ? 'on' : ''} onClick={() => { setPid(p.id); setVid(null); }}>{p.title}{t.length ? <em>{n}/{t.length}</em> : null}</button>; })}</ScrollRow>
     {prog && !cur && <div className="card progcard"><h2>{prog.title}</h2>{prog.blurb && <p className="small mute progblurb">{prog.blurb}</p>}{list.length > 0 && <div style={{ marginTop: 14 }}><div className="meter" style={{ maxWidth: 'none' }} aria-label={`${nWatched} of ${list.length} videos watched`}><i style={{ width: `${Math.round((nWatched / list.length) * 100)}%` }} /></div><div className="small mute" style={{ marginTop: 6 }}>{nWatched} of {list.length} videos watched</div></div>}</div>}{note}
     {cur ? <div className="card"><button className="btn sm" onClick={() => setVid(null)}>← Back to list</button>
       <h2 style={{ marginTop: 14 }}>{cur.title}</h2><div className="row small mute" style={{ marginBottom: 10 }}><span className="tag cyan">{cur.level}</span>{cur.minutes ? <span>{cur.minutes} min</span> : null}</div>
