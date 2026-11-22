@@ -17,7 +17,7 @@ export default function Player({ url, videoId, who }) {
   let inner;
   if (e.kind === 'iframe') inner = <iframe className="player" src={e.src} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />;
   else if (e.kind === 'video') inner = <video className="player" src={e.src} controls playsInline controlsList="nodownload" disablePictureInPicture />;
-  else if (e.kind === 'mux') inner = err ? <div className="err">{err}</div> : mux ? <MuxPlayer playbackId={mux.playbackId} tokens={{ playback: mux.token }} streamType="on-demand" className="player" accentColor="#ff2d8a" /> : <div className="player" />;
+  else if (e.kind === 'mux') inner = err ? <div className="err">{err}</div> : mux ? <MuxPlayer playbackId={mux.playbackId} tokens={{ playback: mux.token }} streamType="on-demand" className="player" accentColor="#FF1A7E" /> : <div className="player" />;
   else return <a className="btn primary" href={e.src} target="_blank" rel="noopener noreferrer">Open video in a new tab</a>;
   return <div style={{ position: 'relative' }} onContextMenu={(ev) => ev.preventDefault()}>{inner}<Mark who={who} /></div>;
 }

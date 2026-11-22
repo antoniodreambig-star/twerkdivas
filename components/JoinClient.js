@@ -7,7 +7,7 @@ export default function JoinClient({ name, price, welcome, on, paid, canceled, s
     setBusy(false); })(); }, [paid]);
   async function pay() { setErr(''); setBusy(true); const r = await fetch('/api/billing/checkout', { method: 'POST' }); const j = await r.json().catch(() => ({})); if (j.url) window.location.href = j.url; else { setErr(j.error || 'Could not start checkout'); setBusy(false); } }
   async function out() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/'; }
-  return (<div className="wrap"><div className="authbox card pop" style={{ textAlign: 'center' }}><img src="/logo.svg" alt="TwerkDivas" />
+  return (<div className="wrap"><div className="authbox card pop" style={{ textAlign: 'center' }}><img src="/logo-sm.png" alt="Cakes and Core Twerk Fitness" />
     <h1 style={{ fontSize: 26 }}>Hi {name.split(' ')[0]}, one last step</h1><p className="mute">{welcome}</p>
     <div className="price" style={{ margin: "12px 0" }}>{price || 'Monthly membership'}</div><p className="small mute">Billed monthly. Cancel any time.</p>
     {status && status !== 'active' && <div className="err">Your membership status is "{status}". Start a new membership to continue.</div>}

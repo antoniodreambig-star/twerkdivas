@@ -6,8 +6,8 @@ const Stat = ({ l, v }) => <div className="stat"><b>{v}</b>{l}</div>;
 
 function Bars({ rows, label = 'Sales by month' }) {
   const max = Math.max(1, ...rows.map((r) => r.cash)); const W = 560, H = 190, pad = 28, bw = (W - pad * 2) / rows.length;
-  return (<svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ width: '100%', maxWidth: 640 }}>{[0, 0.5, 1].map((f) => <line key={f} x1={pad} x2={W - pad} y1={H - 30 - f * (H - 60)} y2={H - 30 - f * (H - 60)} stroke="#E9DFFB" />)}
-    {rows.map((r, i) => { const h = (r.cash / max) * (H - 60); const x = pad + i * bw + bw * 0.18; return (<g key={r.key}><title>{`${r.label}: ${$(r.cash)}, ${r.tickets} tickets`}</title><rect x={x} y={H - 30 - h} width={bw * 0.64} height={Math.max(h, 0)} rx="5" fill="#6D28FF" /><text x={x + bw * 0.32} y={H - 12} textAnchor="middle" fontSize="12" fill="#6B5C96">{r.label}</text>{r.cash > 0 && <text x={x + bw * 0.32} y={H - 34 - h} textAnchor="middle" fontSize="11" fill="#1D0B4A">{$(r.cash).replace('.00', '')}</text>}</g>); })}</svg>);
+  return (<svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} style={{ width: '100%', maxWidth: 640 }}>{[0, 0.5, 1].map((f) => <line key={f} x1={pad} x2={W - pad} y1={H - 30 - f * (H - 60)} y2={H - 30 - f * (H - 60)} stroke="#F6D3E3" />)}
+    {rows.map((r, i) => { const h = (r.cash / max) * (H - 60); const x = pad + i * bw + bw * 0.18; return (<g key={r.key}><title>{`${r.label}: ${$(r.cash)}, ${r.tickets} tickets`}</title><rect x={x} y={H - 30 - h} width={bw * 0.64} height={Math.max(h, 0)} rx="5" fill="#E0105F" /><text x={x + bw * 0.32} y={H - 12} textAnchor="middle" fontSize="12" fill="#6E5A66">{r.label}</text>{r.cash > 0 && <text x={x + bw * 0.32} y={H - 34 - h} textAnchor="middle" fontSize="11" fill="#14060F">{$(r.cash).replace('.00', '')}</text>}</g>); })}</svg>);
 }
 function Table({ cols, rows }) { return rows.length ? (<div className="card" style={{ overflow: 'auto' }}><table><thead><tr>{cols.map((c) => <th key={c[0]}>{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c[0]}>{c[1](r)}</td>)}</tr>)}</tbody></table></div>) : <p className="mute">Nothing yet.</p>; }
 

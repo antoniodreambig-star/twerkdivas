@@ -11,12 +11,12 @@ export default async function Home() {
   const u = await currentUser().catch(() => null); const s = await settings(); await ensureSeed(); const progs = withBlurbs((await db.list('programs')).sort((a, b) => (a.order || 0) - (b.order || 0)));
   const go = u ? (hasAccess(u) ? '/app' : '/join') : '/signup';
   return (<>
-    <div className="nav-top"><div className="wrap top"><img src="/logo.svg" alt="TwerkDivas" /><div className="row"><Link className="btn sm" href="/classes">Find a class</Link><Link className="btn sm" href="/studios">Partner studios</Link><Link className="btn sm" href="/login">Sign in</Link><Link className="btn sm primary" href={go}>{u ? 'Open app' : 'Join now'}</Link></div></div></div>
+    <div className="nav-top"><div className="wrap top"><img src="/logo-sm.png" alt="Cakes and Core Twerk Fitness" /><div className="row"><Link className="btn sm" href="/classes">Find a class</Link><Link className="btn sm" href="/studios">Partner studios</Link><Link className="btn sm" href="/login">Sign in</Link><Link className="btn sm primary" href={go}>{u ? 'Open app' : 'Join now'}</Link></div></div></div>
     <div className="wrap">
       <section className="hero"><div><span className="eyebrow">Instructor Academy</span><h1>Teach TwerkDivas with <em>confidence.</em></h1><p className="lead">{s.welcome}</p>
         <div className="row" style={{ marginTop: 26 }}><Link className="btn primary lg" href={go}>Become an instructor</Link><Link className="btn lg" href="/login">Sign in</Link></div>
         <div className="meta"><div><b>{progs.length || 3}</b>Programs</div><div><b>Online + in person</b>Teach anywhere</div><div><b>Certified</b>Badge and directory listing</div></div></div>
-        <div className="art"><img src="/logo.svg" alt="TwerkDivas logo" /></div></section>
+        <div className="art"><img src="/logo.png" alt="Cakes and Core Twerk Fitness" /></div></section>
       <section className="sec"><h2>How it works</h2><p className="sub">From sign-up to your first class in four steps.</p>
         <div className="steps">{[['Join', 'Create your account and subscribe.'], ['Learn', 'Work through the routines at your own pace.'], ['Certify', 'Submit a teaching video for review.'], ['Teach', 'List your classes and grow your community.']].map(([t, d]) => <div key={t}><b>{t}</b><span>{d}</span></div>)}</div></section>
       <div className="band"><div className="wrap"><section className="sec"><h2>Everything in one place</h2><p className="sub">The tools instructors need, built by TwerkDivas.</p>

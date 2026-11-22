@@ -10,7 +10,7 @@ export default function AuthForm({ mode, agreement }) {
     if (!r.ok) { setErr(j.error || 'Something went wrong'); setBusy(false); return; }
     window.location.href = '/app';
   }
-  return (<div className="wrap"><div className="authbox card pop"><Link href="/"><img src="/logo.svg" alt="TwerkDivas" /></Link>
+  return (<div className="wrap"><div className="authbox card pop"><Link href="/"><img src="/logo-sm.png" alt="Cakes and Core Twerk Fitness" /></Link>
     <h1 style={{ fontSize: 26, textAlign: 'center', marginBottom: 6 }}>{signup ? 'Become an instructor' : 'Welcome back'}</h1>
     <form onSubmit={go}>
       {signup && <><label>Full name</label><input value={f.name} onChange={set('name')} required autoComplete="name" /></>}

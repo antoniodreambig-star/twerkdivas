@@ -18,7 +18,7 @@ export default function MemberApp({ isAdmin }) {
   if (!d) return <div className="main mute">Loading...</div>;
   const unread = d.messages.filter((m) => m.from === 'admin' && !m.read).length;
   const P = { d, load, go: setTab };
-  return (<div className="app"><header className="appbar"><div className="wrap bar2"><img src="/logo.svg" alt="TwerkDivas" /><div className="row">{isAdmin && <a className="btn sm" href="/admin">Admin console</a>}<span className="who">{d.me.name.split(' ')[0]}</span><button className="btn sm" onClick={out}>Sign out</button></div></div></header>
+  return (<div className="app"><header className="appbar"><div className="wrap bar2"><img src="/logo-sm.png" alt="Cakes and Core Twerk Fitness" /><div className="row">{isAdmin && <a className="btn sm" href="/admin">Admin console</a>}<span className="who">{d.me.name.split(' ')[0]}</span><button className="btn sm" onClick={out}>Sign out</button></div></div></header>
     <main className="stage">{tab === 'home' && <Home {...P} />}{tab === 'learn' && <Learn {...P} />}{tab === 'cert' && <Certify {...P} />}{tab === 'classes' && <Classes {...P} />}{tab === 'earn' && <Earnings {...P} />}{tab === 'resources' && <Resources {...P} />}{tab === 'people' && <People {...P} />}{tab === 'support' && <Support {...P} />}{tab === 'me' && <Profile {...P} />}</main>
     <nav className="dock" aria-label="Main">{NAV.map(([k, i, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); load(); window.scrollTo({ top: 0 }); }}><Icon n={i} /><span>{l}</span>{k === 'support' && unread > 0 && <b className="dot">{unread}</b>}</button>)}</nav></div>);
 }
