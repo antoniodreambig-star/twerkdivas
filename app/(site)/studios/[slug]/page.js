@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import ClassCard from '@/components/ClassCard';
 import { publicClasses, venueBySlug } from '@/lib/data';
 export const dynamic = 'force-dynamic';
-export async function generateMetadata({ params }) { const v = await venueBySlug(params.slug); return { title: v ? `${v.name} · TwerkDivas partner studio` : 'Studio' }; }
+export async function generateMetadata({ params }) { const v = await venueBySlug(params.slug); return { title: v ? `${v.name} · Cakes and Core partner studio` : 'Studio' }; }
 export default async function Page({ params }) {
   const v = await venueBySlug(params.slug); if (!v) notFound(); const rows = await publicClasses({ venue: v.id });
   return (<><p className="small"><Link href={`/studios?state=${v.state}`}>← Partner studios</Link></p><h1 className="pubh">{v.name}</h1>

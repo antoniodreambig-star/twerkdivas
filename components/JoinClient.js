@@ -14,6 +14,6 @@ export default function JoinClient({ name, price, welcome, on, paid, canceled, s
     {canceled && <div className="err">Checkout was canceled. You have not been charged.</div>}
     {busy && paid && <div className="ok">Confirming your payment...</div>}{err && <div className="err">{err}</div>}
     <button className="btn primary" style={{ width: '100%' }} onClick={pay} disabled={busy || !on}>{busy ? 'One moment...' : 'Start my membership'}</button>
-    {!on && <p className="small mute">Billing is not switched on yet. Please contact TwerkDivas.</p>}
+    {!on && <p className="small mute">Billing is not switched on yet. Please contact Cakes and Core.</p>}
     <p><button className="btn sm" onClick={out}>Sign out</button></p></div></div>);
 }

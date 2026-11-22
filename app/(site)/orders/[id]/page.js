@@ -9,7 +9,7 @@ import { fmtWhen, fmtTime } from '@/lib/tz';
 import { money } from '@/components/ClassCard';
 import ReviewForm from '@/components/ReviewForm';
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Your tickets · TwerkDivas', robots: { index: false } };
+export const metadata = { title: 'Your tickets · Cakes and Core', robots: { index: false } };
 export default async function Page({ params, searchParams }) {
   const o = await db.get('orders', params.id); if (!o) notFound();
   const cls = await db.get('classes', o.classId); const v = cls?.venueId ? await db.get('venues', cls.venueId) : null; const ins = cls ? await db.get('users', cls.userId) : null;

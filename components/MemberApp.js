@@ -59,7 +59,7 @@ function Certify({ d, load }) {
   const { note, act } = useAct(load); const [f, setF] = useState({ programId: d.programs[0]?.id || '', url: '', note: '' });
   const prereq = !!d.me.agreedAt && !!d.me.cpr;
   const st = (pid) => { const s = d.submissions.filter((x) => x.programId === pid); return s.find((x) => x.status === 'approved') || s[0]; };
-  return (<><h1>Get certified</h1><p className="mute">Teach the routine on video, submit the link, and the TwerkDivas team will review it. Approved instructors earn a certified badge and appear in the directory.</p>{note}
+  return (<><h1>Get certified</h1><p className="mute">Teach the routine on video, submit the link, and the Cakes and Core team will review it. Approved instructors earn a certified badge and appear in the directory.</p>{note}
     <div className="card" style={{ margin: '14px 0' }}><b>Before you submit</b><p style={{ margin: '6px 0' }}>{d.me.agreedAt ? '✅' : '⬜'} Instructor agreement accepted<br />{d.me.cpr ? '✅' : '⬜'} {d.settings.prereqs} — add it under My profile</p></div>
     <div className="grid">{d.programs.map((p) => { const s = st(p.id); return (<div key={p.id} className="card"><h3 style={{ fontSize: 19 }}>{p.title}</h3>
       {(() => { const vs = d.videos.filter((v) => v.programId === p.id); const n = vs.filter((v) => d.progress.includes(v.id)).length; return vs.length ? <div style={{ margin: '6px 0' }}><div className="meter" aria-label={`${n} of ${vs.length} lessons watched`}><i style={{ width: `${Math.round((n / vs.length) * 100)}%` }} /></div><div className="small mute">{n} of {vs.length} lessons watched</div></div> : null; })()}{s?.status === 'approved' && <p><span className="tag ok">✓ Certified</span> <a className="btn sm" href={`/certificate/${s.id}`} target="_blank" rel="noopener noreferrer">Print certificate</a></p>}{s?.status === 'pending' && <p><span className="tag cyan">In review</span></p>}
@@ -84,7 +84,7 @@ function Classes({ d, load }) {
   const startEdit = (c) => { const tz = c.tz || 'America/Chicago'; setEdit({ ...c, price: (c.price || 0) / 100, start: utcToZonedInput(c.start, tz), end: utcToZonedInput(c.end, tz) }); };
   const R = (c, past) => <ClassRow key={c.id} c={c} pn={pn} vn={vn} past={past} copied={copied === c.id} onCopy={() => copy(c)} onRoster={() => setRoster(c.id)} onEdit={() => startEdit(c)} onDel={() => confirm('Delete this class?') && act('class.del', { id: c.id })} />;
   return (<><div className="row" style={{ justifyContent: 'space-between' }}><h1>My classes</h1><button className="btn primary" onClick={() => setEdit({ ...blank })}>+ Add a class</button></div>{note}
-    <p className="mute">Tickets are sold only on the TwerkDivas website. Pick a partner studio (its maximum attendance is enforced for you), set a ticket price and share your class link. On class day, open <b>Roster &amp; check-in</b>.</p>
+    <p className="mute">Tickets are sold only on the Cakes and Core website. Pick a partner studio (its maximum attendance is enforced for you), set a ticket price and share your class link. On class day, open <b>Roster &amp; check-in</b>.</p>
     {certIds.length === 0 && <div className="card" style={{ borderColor: 'var(--pink)' }}><b>Get certified to sell tickets.</b><p className="small mute" style={{ margin: '4px 0 0' }}>Public classes need an approved certification in the program you teach. You can still save private classes.</p></div>}
     <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>{up.length === 0 && <p className="mute">No upcoming classes. Add one!</p>}{up.map((c) => R(c))}</div>
     {past.length > 0 && <><h2>Past</h2><div style={{ display: 'grid', gap: 10 }}>{past.slice(-6).reverse().map((c) => R(c, true))}</div></>}
@@ -96,12 +96,12 @@ function Classes({ d, load }) {
       <label>Program</label><select value={edit.programId} onChange={(e) => setEdit({ ...edit, programId: e.target.value })}><option value="">Other (private only)</option>{d.programs.map((p) => <option key={p.id} value={p.id}>{p.title}{certIds.includes(p.id) ? ' ✓ certified' : ''}</option>)}</select>
       <label>Type</label><select disabled={edit.sold > 0} value={edit.mode} onChange={(e) => setEdit({ ...edit, mode: e.target.value })}><option value="in-person">In person at a partner studio</option><option value="online">Online</option></select>
       {edit.mode === 'online' ? <><label>Time zone</label><select value={edit.tz} onChange={(e) => setEdit({ ...edit, tz: e.target.value })}>{TZ_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select><label>Private class link (Zoom, etc.)</label><input value={edit.link} onChange={(e) => setEdit({ ...edit, link: e.target.value })} placeholder="https://..." /></>
-        : <><label>Partner studio</label>{d.venues.length === 0 ? <p className="small mute">No partner studios yet. Ask TwerkDivas to add one.</p> : <select disabled={edit.sold > 0} value={edit.venueId} onChange={(e) => setEdit({ ...edit, venueId: e.target.value })}>{d.venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}, {v.state} (max {v.capacity})</option>)}</select>}</>}
+        : <><label>Partner studio</label>{d.venues.length === 0 ? <p className="small mute">No partner studios yet. Ask Cakes and Core to add one.</p> : <select disabled={edit.sold > 0} value={edit.venueId} onChange={(e) => setEdit({ ...edit, venueId: e.target.value })}>{d.venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}, {v.state} (max {v.capacity})</option>)}</select>}</>}
       <div className="row"><div className="grow"><label>Starts{edit.mode === 'in-person' && venue ? ` (${venue.city} time)` : ''}</label><input type="datetime-local" disabled={edit.sold > 0} value={edit.start} onChange={(e) => setEdit({ ...edit, start: e.target.value })} /></div><div className="grow"><label>Ends</label><input type="datetime-local" disabled={edit.sold > 0} value={edit.end} onChange={(e) => setEdit({ ...edit, end: e.target.value })} /></div></div>
       <div className="row"><div className="grow"><label>Ticket price ($, 0 = free)</label><input type="number" min="0" step="0.50" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} /></div><div className="grow"><label>{edit.mode === 'in-person' && venue ? `Spots (max ${venue.capacity}, 0 = full room)` : 'Spots (up to 1,000)'}</label><input type="number" min="0" value={edit.spots} onChange={(e) => setEdit({ ...edit, spots: e.target.value })} /></div></div>
       {!edit.id && <><label>Repeat weekly</label><select value={edit.repeatWeeks} onChange={(e) => setEdit({ ...edit, repeatWeeks: Number(e.target.value) })}><option value={1}>Just this once</option>{[2, 4, 6, 8, 12].map((n) => <option key={n} value={n}>Every week for {n} weeks</option>)}</select>{edit.repeatWeeks > 1 && <p className="small mute" style={{ margin: '4px 0 0' }}>Creates {edit.repeatWeeks} separate classes at the same local time. Each one sells tickets on its own.</p>}</>}
       <label>Notes for attendees</label><textarea value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} placeholder="What to wear, what to bring..." />
-      <label style={{ display: 'flex', gap: 8, color: 'var(--ink)' }}><input type="checkbox" checked={edit.public} onChange={(e) => setEdit({ ...edit, public: e.target.checked })} /> Sell tickets on the TwerkDivas website</label>
+      <label style={{ display: 'flex', gap: 8, color: 'var(--ink)' }}><input type="checkbox" checked={edit.public} onChange={(e) => setEdit({ ...edit, public: e.target.checked })} /> Sell tickets on the Cakes and Core website</label>
       {note}<button className="btn primary" style={{ marginTop: 14 }} onClick={async () => { if (await act('class.save', { ...edit, spots: Number(edit.spots) || 0 }, 'Saved')) setEdit(null); }}>Save class</button></Modal>}</>);
 }
 function ClassRow({ c, pn, vn, past, copied, onCopy, onRoster, onEdit, onDel }) {
@@ -126,20 +126,20 @@ export function RosterModal({ id, onClose }) {
 }
 
 function Resources({ d }) {
-  return (<><h1>Resources</h1><p className="mute">Music lists, class plans, waivers and more from TwerkDivas.</p>
+  return (<><h1>Resources</h1><p className="mute">Music lists, class plans, waivers and more from Cakes and Core.</p>
     <div className="grid">{d.resources.length === 0 && <p className="mute">Nothing here yet.</p>}{d.resources.map((r) => <div className="card" key={r.id}><span className="tag volt">{r.kind}</span><h3 style={{ fontSize: 18, margin: '10px 0 6px' }}>{r.title}</h3><p className="mute small">{r.desc}</p>{r.url && <a className="btn sm primary" href={r.url} target="_blank" rel="noopener noreferrer">Open</a>}</div>)}</div></>);
 }
 
 function People({ d }) {
   const [list, setList] = useState(null);
   useEffect(() => { fetch('/api/public/instructors').then((r) => r.json()).then((j) => setList(j.instructors || [])).catch(() => setList([])); }, []);
-  return (<><h1>Community</h1><p className="mute">Certified TwerkDivas instructors.</p>
+  return (<><h1>Community</h1><p className="mute">Certified Cakes and Core instructors.</p>
     <div className="grid">{(list || []).map((i, k) => <div className="card" key={k}>{i.photo && <img src={i.photo} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />}<h3 style={{ fontSize: 18 }}>{i.name}</h3><div className="small mute">{i.city}</div><p className="small">{i.bio}</p>{i.certified.map((c) => <span key={c} className="tag volt" style={{ marginRight: 4 }}>{c}</span>)}</div>)}</div>{list && !list.length && <p className="mute">Certified instructors will appear here.</p>}</>);
 }
 
 function Support({ d, load }) {
   const { note, act } = useAct(load); const [t, setT] = useState('');
-  return (<><h1>Support</h1><p className="mute">Message the TwerkDivas team with questions.</p>{note}
+  return (<><h1>Support</h1><p className="mute">Message the Cakes and Core team with questions.</p>{note}
     <div className="card" style={{ minHeight: 160 }}>{d.messages.length === 0 && <p className="mute">No messages yet.</p>}{d.messages.map((m) => <div key={m.id} className={`bubble ${m.from === 'member' ? 'me' : ''}`}><div>{m.text}</div><div className="small mute">{when(m.createdAt)}</div></div>)}</div>
     <textarea value={t} onChange={(e) => setT(e.target.value)} placeholder="Write a message..." style={{ marginTop: 12 }} /><button className="btn primary" style={{ marginTop: 8 }} onClick={async () => { if (await act('message', { text: t })) setT(''); }}>Send</button></>);
 }
@@ -156,6 +156,6 @@ function Profile({ d, load }) {
     <label>{d.settings.prereqs}</label><input value={f.cprUrl} onChange={set('cprUrl')} placeholder="https://..." />
     <label style={{ display: 'flex', gap: 8, color: 'var(--ink)' }}><input type="checkbox" checked={f.listed} onChange={set('listed')} /> List me in the instructor directory once certified</label>
     <button className="btn primary" style={{ marginTop: 14 }} onClick={() => act('profile', f, 'Profile saved')}>Save profile</button></div>
-    <h2>Membership</h2><div className="card"><p style={{ marginTop: 0 }}>{m.role === 'admin' ? 'Admin account' : m.comp ? 'Complimentary access from TwerkDivas' : m.sub ? <>Status: <b>{m.sub.status}</b>{m.sub.periodEnd ? ` · ${m.sub.cancelAtEnd ? 'ends' : 'renews'} ${day(m.sub.periodEnd)}` : ''}</> : 'No active subscription'}</p>{m.sub && <button className="btn" onClick={portal}>Manage billing / cancel</button>}</div>
+    <h2>Membership</h2><div className="card"><p style={{ marginTop: 0 }}>{m.role === 'admin' ? 'Admin account' : m.comp ? 'Complimentary access from Cakes and Core' : m.sub ? <>Status: <b>{m.sub.status}</b>{m.sub.periodEnd ? ` · ${m.sub.cancelAtEnd ? 'ends' : 'renews'} ${day(m.sub.periodEnd)}` : ''}</> : 'No active subscription'}</p>{m.sub && <button className="btn" onClick={portal}>Manage billing / cancel</button>}</div>
     <p className="small mute">Agreement accepted {day(m.agreedAt)}.</p></>);
 }

@@ -5,7 +5,7 @@ import BookingsForm from '@/components/BookingsForm';
 import { fmtWhen } from '@/lib/tz';
 import { money } from '@/components/ClassCard';
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'My bookings · TwerkDivas', robots: { index: false } };
+export const metadata = { title: 'My bookings · Cakes and Core', robots: { index: false } };
 export default async function Page({ searchParams: q }) {
   const email = String(q.e || '').toLowerCase(); const signed = q.e && q.t;
   if (!signed || !magicOk(email, q.x, q.t)) return (<><h1 className="pubh">My bookings</h1><p className="mute">Enter the email you used at checkout. We will send you a private link to see your tickets and class pack balance. No password needed.</p><BookingsForm expired={!!signed} /></>);

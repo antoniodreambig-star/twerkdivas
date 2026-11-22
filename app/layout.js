@@ -1,5 +1,5 @@
 import './globals.css';
-export const metadata = { metadataBase: new URL(process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')), openGraph: { siteName: 'Cakes and Core Twerk Fitness', type: 'website' }, title: 'TwerkDivas Instructor Academy', description: 'Learn the TwerkDivas routines, get certified, and teach.', manifest: '/manifest.webmanifest' };
+export const metadata = { metadataBase: new URL(process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000')), openGraph: { siteName: 'Cakes and Core Twerk Fitness', type: 'website' }, title: 'Cakes and Core Instructor Academy', description: 'Learn the Cakes and Core routines, get certified, and teach.', manifest: '/manifest.webmanifest' };
 export const viewport = { themeColor: '#0B0B10' };
 export default function Root({ children }) {
   return (<html lang="en"><head>

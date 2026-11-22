@@ -19,7 +19,7 @@ export async function POST(req) {
         const token = crypto.randomBytes(32).toString('hex'); const id = crypto.createHash('sha256').update(token).digest('hex');
         await db.put('resets', id, { id, userId: u.id, exp: now + 36e5 });
         const link = `${appUrl(req)}/reset?token=${token}`;
-        await sendEmail({ to: u.email, subject: 'Reset your TwerkDivas password', html: layout('Reset your password', `<p>Hi ${u.name.split(' ')[0].replace(/[<>&"']/g, '')}, use the button below to choose a new password. The link works for one hour.</p>${button(link, 'Choose a new password')}<p style="font-size:13px;color:#6E5A66">If you did not ask for this, you can ignore this email.</p>`) });
+        await sendEmail({ to: u.email, subject: 'Reset your Cakes and Core password', html: layout('Reset your password', `<p>Hi ${u.name.split(' ')[0].replace(/[<>&"']/g, '')}, use the button below to choose a new password. The link works for one hour.</p>${button(link, 'Choose a new password')}<p style="font-size:13px;color:#6E5A66">If you did not ask for this, you can ignore this email.</p>`) });
       }
     }
   }

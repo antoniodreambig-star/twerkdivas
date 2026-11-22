@@ -4,7 +4,7 @@ import { fmtDay, fmtTime } from '@/lib/tz';
 import { money } from '@/components/ClassCard';
 import ShareButton from '@/components/ShareButton';
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Pop-up events · TwerkDivas', description: 'Limited-capacity TwerkDivas pop-up events. Get your ticket before they sell out.' };
+export const metadata = { title: 'Pop-up events · Cakes and Core', description: 'Limited-capacity Cakes and Core pop-up events. Get your ticket before they sell out.' };
 function Card({ e, big }) {
   const v = e.venueFull; const d = new Date(e.start); const mo = d.toLocaleDateString('en-US', { timeZone: e.tz, month: 'short' }); const dd = d.toLocaleDateString('en-US', { timeZone: e.tz, day: 'numeric' }); const wk = d.toLocaleDateString('en-US', { timeZone: e.tz, weekday: 'short' });
   const taken = e.cap - e.left; const pct = e.cap ? Math.min(100, Math.round((taken / e.cap) * 100)) : 0; const out = e.left <= 0;
@@ -15,12 +15,12 @@ function Card({ e, big }) {
       {big && e.notes && <p className="popnotes">{e.notes.slice(0, 280)}{e.notes.length > 280 ? '…' : ''}</p>}
       <div className="popinst">{e.instructorPhoto ? <img src={e.instructorPhoto} alt="" referrerPolicy="no-referrer" /> : <span className="av">{e.instructor.slice(0, 1)}</span>}<span className="small"><span className="mute">With </span><b><Link href={`/instructors/${e.instructorId}`}>{e.instructor}</Link></b></span></div>
       <div className="meter" aria-label={`${taken} of ${e.cap} spots taken`}><i style={{ width: `${pct}%` }} /></div><div className="small mute" style={{ marginTop: 4 }}>{out ? 'Sold out' : `${e.left} of ${e.cap} spots left`}</div></div>
-    <div className="popbuy"><span className="price">{money(e.price)}</span>{out ? <span className="btn" style={{ pointerEvents: 'none', opacity: .6 }}>Sold out</span> : <Link className="btn primary lg" href={`/classes/${e.id}`}>Get tickets</Link>}<ShareButton title={e.title} text={`${e.title} - TwerkDivas pop-up`} path={`/classes/${e.id}`} /></div></article>);
+    <div className="popbuy"><span className="price">{money(e.price)}</span>{out ? <span className="btn" style={{ pointerEvents: 'none', opacity: .6 }}>Sold out</span> : <Link className="btn primary lg" href={`/classes/${e.id}`}>Get tickets</Link>}<ShareButton title={e.title} text={`${e.title} - Cakes and Core pop-up`} path={`/classes/${e.id}`} /></div></article>);
 }
 export default async function Page() {
   const list = await publicPopups(); const set = await settings(); const [first, ...rest] = list;
-  return (<><section className="pophero"><span className="popbadge">Limited capacity</span><h1>Pop-up <em>events</em></h1><p>One-night-only TwerkDivas experiences. Small rooms, big energy, and once the room is full it is full.</p></section>
+  return (<><section className="pophero"><span className="popbadge">Limited capacity</span><h1>Pop-up <em>events</em></h1><p>One-night-only Cakes and Core experiences. Small rooms, big energy, and once the room is full it is full.</p></section>
     {list.length === 0 ? <div className="card" style={{ textAlign: 'center', padding: 36 }}><h2 style={{ marginTop: 0 }}>Next pop-up coming soon</h2><p className="mute">No pop-ups on sale right now. Browse regular classes in the meantime.</p><Link className="btn primary" href="/classes">Browse classes</Link></div>
       : <><Card e={first} big />{rest.length > 0 && <><h2 className="dayh">More pop-ups</h2><div className="popgrid">{rest.map((e) => <Card key={e.id} e={e} />)}</div></>}</>}
-    {set.contactEmail && <div className="card" style={{ marginTop: 32, textAlign: 'center' }}><b>Want a pop-up in your city?</b><p className="mute small" style={{ margin: '4px 0 12px' }}>Studios and venues: bring TwerkDivas to your space.</p><a className="btn primary" href={`mailto:${set.contactEmail}?subject=Pop-up event inquiry`}>Get in touch</a></div>}</>);
+    {set.contactEmail && <div className="card" style={{ marginTop: 32, textAlign: 'center' }}><b>Want a pop-up in your city?</b><p className="mute small" style={{ margin: '4px 0 12px' }}>Studios and venues: bring Cakes and Core to your space.</p><a className="btn primary" href={`mailto:${set.contactEmail}?subject=Pop-up event inquiry`}>Get in touch</a></div>}</>);
 }

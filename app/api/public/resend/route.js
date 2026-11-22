@@ -14,7 +14,7 @@ export async function POST(req) {
   if (isEmail(email)) {
     const orders = (await db.list('orders')).filter((o) => o.email === email && o.status === 'paid'); const classes = Object.fromEntries((await db.list('classes')).map((c) => [c.id, c])); const origin = appUrl(req);
     const up = orders.filter((o) => classes[o.classId] && !classes[o.classId].canceled && Date.parse(classes[o.classId].start) > now - 864e5);
-    if (up.length) await sendEmail({ to: email, subject: 'Your TwerkDivas tickets', html: layout('Your tickets', up.map((o) => `<p><b>${esc(classes[o.classId].title)}</b><br>${esc(fmtWhen(classes[o.classId].start, classes[o.classId].tz, true))}<br><a href="${esc(origin)}/orders/${esc(o.id)}">View tickets</a></p>`).join('')) });
+    if (up.length) await sendEmail({ to: email, subject: 'Your Cakes and Core tickets', html: layout('Your tickets', up.map((o) => `<p><b>${esc(classes[o.classId].title)}</b><br>${esc(fmtWhen(classes[o.classId].start, classes[o.classId].tz, true))}<br><a href="${esc(origin)}/orders/${esc(o.id)}">View tickets</a></p>`).join('')) });
   }
   return NextResponse.json({ ok: true, configured: true });
 }

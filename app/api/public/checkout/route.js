@@ -32,7 +32,7 @@ export async function POST(req) {
       catch (e) { await releaseOrder(order.id); return err(e.message); }
     }
     if (order.amount === 0) { await markPaid(order.id); return NextResponse.json({ url: `${origin}/orders/${order.id}` }); }
-    // Automatic payout split when the instructor finished Stripe Connect onboarding; otherwise the money stays with TwerkDivas for a manual payout.
+    // Automatic payout split when the instructor finished Stripe Connect onboarding; otherwise the money stays with Cakes and Core for a manual payout.
     const dest = ins.connect?.ready && ins.connect.acct ? ins.connect.acct : ''; const fee = dest ? Math.round((order.amount * Math.min(100, Math.max(0, Number(set.feePct) || 0))) / 100) : 0;
     try { const s = await ticketCheckout(order, cls, origin, dest ? { dest, fee } : null); await db.put('orders', order.id, { ...order, session: s.id, ...(dest ? { dest, fee } : {}) }); return NextResponse.json({ url: s.url }); }
     catch (e) { await releaseOrder(order.id); return err('Could not start payment. Please try again.', 502); }

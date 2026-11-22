@@ -1,6 +1,6 @@
-# TwerkDivas Instructor Academy
+# Cakes and Core Instructor Academy
 
-Members-only app for TwerkDivas instructors: sign up, pay a monthly membership, learn the routines from video, get certified, list classes, and message the team. Built with Next.js 14. Uses the TwerkDivas logo from twerkdivas.com.
+Members-only app for Cakes and Core instructors: sign up, pay a monthly membership, learn the routines from video, get certified, list classes, and message the team. Built with Next.js 14. Uses the Cakes and Core logo from twerkdivas.com.
 
 ## How it works
 - **Instructors** sign up (and accept the instructor agreement), then pay via Stripe Checkout. Access opens the moment payment succeeds and closes if the subscription is canceled or unpaid.
