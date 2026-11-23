@@ -7,7 +7,7 @@ import { memberView, adminView, settings } from '@/lib/data';
 import { cleanUrl, cleanVideoRef } from '@/lib/video';
 import { str } from '@/lib/rules';
 import { STATES, slugify, STATE_TZ, TZ_OPTIONS, DEFAULT_TZ } from '@/lib/us';
-import { zonedToUtcISO } from '@/lib/tz';
+import { zonedToUtcISO, utcToZonedInput } from '@/lib/tz';
 import { snapshot, availability, slot, refundOrder, cancelClass, maskEmail } from '@/lib/tickets';
 import { healthChecks, setupSummary } from '@/lib/health';
 import { analytics, earningsFor } from '@/lib/reports';
@@ -197,7 +197,22 @@ export async function POST(req) {
         if (weeks > 1) { const seriesId = `ser-${db.uid()}`; for (let i = 0; i < weeks; i++) { const cid = `cls-${db.uid()}`; await db.put('classes', cid, { ...rec, id: cid, seriesId, start: zonedToUtcISO(addDays(b.start, 7 * i), tz), end: b.end ? zonedToUtcISO(addDays(b.end, 7 * i), tz) : '' }); }
           if (ongoing) await db.put('series', seriesId, { id: seriesId, userId: u.id, ongoing: true, lastLocal: addDays(b.start, 7 * (weeks - 1)), createdAt: now });
           out.created = weeks; break; }
-        await db.put('classes', id, { ...(old || {}), id, ...rec, start, end }); break; }
+        await db.put('classes', id, { ...(old || {}), id, ...rec, start, end });
+        // "All upcoming classes in this series": copy the details to every later class in the series, keeping each one's own date.
+        // Classes that already sold tickets keep their time, place and type.
+        if (old?.seriesId && b.scope === 'series') {
+          const snap = await snapshot(); const t0 = String(b.start).split('T')[1], t1 = b.end ? String(b.end).split('T')[1] : ''; const endDay = b.end ? Math.round((Date.parse(`${b.end.slice(0, 10)}T00:00Z`) - Date.parse(`${b.start.slice(0, 10)}T00:00Z`)) / 864e5) : 0;
+          let n = 0, locked = 0;
+          for (const c of snap.classes.filter((x) => x.seriesId === old.seriesId && x.id !== id && x.userId === u.id && !x.canceled && !x.popup && Date.parse(x.start) > Date.now())) {
+            const day = utcToZonedInput(c.start, c.tz || tz).slice(0, 10); const sold = availability(c, snap).sold;
+            const st = zonedToUtcISO(`${day}T${t0}`, tz), en = t1 ? zonedToUtcISO(`${addDays(`${day}T${t1}`, endDay)}`, tz) : '';
+            const keep = sold > 0 && (venueId !== (c.venueId || '') || st !== c.start || en !== (c.end || '') || mode !== c.mode);
+            if (keep) locked++;
+            await db.put('classes', c.id, { ...c, ...rec, ...(keep ? { venueId: c.venueId, mode: c.mode, tz: c.tz, start: c.start, end: c.end || '' } : { start: st, end: en }), spots: sold > 0 && rec.spots > 0 && rec.spots < sold ? sold : rec.spots }); n++;
+          }
+          out.updated = n + 1; out.locked = locked;
+        }
+        break; }
       case 'series.ongoing': case 'series.stop': {
         const sid = str(b.seriesId, 60); const mine = (await db.list('classes')).filter((c) => c.seriesId === sid);
         if (!mine.length || mine.some((c) => c.userId !== u.id)) throw new Error('That is not your class series');
