@@ -4,7 +4,7 @@ import { useState } from 'react';
 export default function Avatar({ src, name = '', size = 72, style }) {
   const [bad, setBad] = useState(false);
   const ini = String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase() || '?';
-  const box = { width: size, height: size, borderRadius: '50%', flex: 'none', ...style };
+  const box = { width: size, height: size, borderRadius: '50%', flex: 'none', boxSizing: 'border-box', ...style };
   if (src && !bad) return <img src={src} alt={name ? `${name}` : ''} referrerPolicy="no-referrer" onError={() => setBad(true)} style={{ ...box, objectFit: 'cover', border: '3px solid var(--hot, #FF1A7E)' }} />;
   return <div aria-hidden="true" style={{ ...box, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#FF1A7E,#1A0A12)', color: '#fff', fontWeight: 800, fontSize: Math.round(size * 0.36), letterSpacing: '.02em' }}>{ini}</div>;
 }
