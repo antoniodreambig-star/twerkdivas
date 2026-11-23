@@ -13,7 +13,7 @@ import { healthChecks, setupSummary } from '@/lib/health';
 import { analytics, earningsFor } from '@/lib/reports';
 import { runBackup, listBackups } from '@/lib/backup';
 import { unsubscribe } from '@/lib/subscribers';
-const addDays = (local, n) => { const [d, t] = local.split('T'); const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return `${x.toISOString().slice(0, 10)}T${t}`; };
+import { addDays, topUpSeries, startOngoing, AHEAD_WEEKS } from '@/lib/series';
 
 const bad = (m, s = 400) => NextResponse.json({ error: m }, { status: s });
 const url = (v, label) => { const x = str(v, 600); if (!x) return ''; const c = cleanUrl(x); if (!c) throw new Error(`${label} must be a full https:// link`); return c; };
@@ -44,6 +44,7 @@ export async function GET(req) {
     return NextResponse.json({ cls: { id: c.id, title: c.title, start: c.start, end: c.end || '', mode: c.mode, tz: c.tz || 'America/Chicago', canceled: !!c.canceled, venue: v ? `${v.name}, ${v.city}, ${v.state}` : '', venueCap: a.venueCap }, cap: a.cap, sold: a.sold, checkedIn: a.checkedIn,
       tickets: snap.tickets.filter((t) => t.classId === c.id && t.status === 'valid').sort((x, y) => x.name.localeCompare(y.name)).map((t) => ({ id: t.id, code: t.code, name: t.name, checkedInAt: t.checkedInAt || '', email: maskEmail(snap.ob[t.orderId]?.email || '') })) });
   }
+  await topUpSeries({ userId: u.id }).catch(() => 0);
   return NextResponse.json(await memberView(u));
 }
 
@@ -191,9 +192,17 @@ export async function POST(req) {
         if (pub) { if (!programId || !(await db.get('programs', programId))) throw new Error('Choose the program for a public class'); if (!admin && !(await db.list('submissions')).some((x) => x.userId === u.id && x.programId === programId && x.status === 'approved')) throw new Error('You need to be certified in this program before you can sell tickets for it. You can save it as a private class for now.'); }
         if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (venueId !== (old.venueId || '') || start !== old.start || end !== (old.end || '') || mode !== old.mode) throw new Error('Tickets are already sold, so the time, place and type are locked. Ask Cakes and Core to cancel the class if it cannot go ahead.'); if (spots > 0 && spots < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} spots or more.`); if (!pub) throw new Error('Tickets are already sold, so this class has to stay public.'); } }
         const rec = { userId: u.id, title, programId, mode, venueId, tz, spots, price: cents, link: mode === 'online' ? url(b.link, 'The class link') : '', bookUrl: url(b.bookUrl, 'The outside booking link'), bookNote: str(b.bookNote, 300), notes: str(b.notes, 500), public: pub };
-        const weeks = !old ? Math.min(12, Math.max(1, Math.floor(Number(b.repeatWeeks) || 1))) : 1;
-        if (weeks > 1) { const seriesId = `ser-${db.uid()}`; for (let i = 0; i < weeks; i++) { const cid = `cls-${db.uid()}`; await db.put('classes', cid, { ...rec, id: cid, seriesId, start: zonedToUtcISO(addDays(b.start, 7 * i), tz), end: b.end ? zonedToUtcISO(addDays(b.end, 7 * i), tz) : '' }); } out.created = weeks; break; }
+        // repeatWeeks 'ongoing' = every week until the instructor stops it: schedule AHEAD_WEEKS now, the rest are added as time passes.
+        const ongoing = !old && b.repeatWeeks === 'ongoing'; const weeks = ongoing ? AHEAD_WEEKS : !old ? Math.min(12, Math.max(1, Math.floor(Number(b.repeatWeeks) || 1))) : 1;
+        if (weeks > 1) { const seriesId = `ser-${db.uid()}`; for (let i = 0; i < weeks; i++) { const cid = `cls-${db.uid()}`; await db.put('classes', cid, { ...rec, id: cid, seriesId, start: zonedToUtcISO(addDays(b.start, 7 * i), tz), end: b.end ? zonedToUtcISO(addDays(b.end, 7 * i), tz) : '' }); }
+          if (ongoing) await db.put('series', seriesId, { id: seriesId, userId: u.id, ongoing: true, lastLocal: addDays(b.start, 7 * (weeks - 1)), createdAt: now });
+          out.created = weeks; break; }
         await db.put('classes', id, { ...(old || {}), id, ...rec, start, end }); break; }
+      case 'series.ongoing': case 'series.stop': {
+        const sid = str(b.seriesId, 60); const mine = (await db.list('classes')).filter((c) => c.seriesId === sid);
+        if (!mine.length || mine.some((c) => c.userId !== u.id)) throw new Error('That is not your class series');
+        if (op === 'series.ongoing') { out.added = await startOngoing(sid, u.id); break; }
+        const s = await db.get('series', sid); if (s) await db.put('series', sid, { ...s, ongoing: false, stoppedAt: now }); break; }
       case 'class.del': {
         const c = await db.get('classes', str(b.id, 60)); if (!c || c.userId !== u.id || c.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
         if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This class has ticket orders. Ask Cakes and Core to cancel it so buyers are refunded.');
