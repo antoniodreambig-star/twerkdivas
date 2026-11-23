@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import * as db from '@/lib/db';
 import Icon from '@/components/Icon';
+import PublicNav from '@/components/PublicNav';
 import { currentUser, hasAccess } from '@/lib/auth';
 import { settings, ensureSeed } from '@/lib/data';
 import { withBlurbs } from '@/lib/rules';
@@ -11,7 +12,7 @@ export default async function Home() {
   const u = await currentUser().catch(() => null); const s = await settings(); await ensureSeed(); const progs = withBlurbs((await db.list('programs')).sort((a, b) => (a.order || 0) - (b.order || 0)));
   const go = u ? (hasAccess(u) ? '/app' : '/join') : '/signup';
   return (<>
-    <div className="nav-top"><div className="wrap top"><img src="/logo-sm.png" alt="Cakes and Core Twerk Fitness" /><div className="row"><Link className="btn sm" href="/classes">Find a class</Link><Link className="btn sm" href="/studios">Partner studios</Link><Link className="btn sm" href="/login">Sign in</Link><Link className="btn sm primary" href={go}>{u ? 'Open app' : 'Join now'}</Link></div></div></div>
+    <PublicNav logoHref={null} links={[{ href: '/classes', label: 'Find a class' }, { href: '/studios', label: 'Partner studios' }]} ctas={[{ href: '/login', label: 'Sign in' }, { href: go, label: u ? 'Open app' : 'Join now', primary: true }]} />
     <div className="wrap">
       <section className="hero"><div><span className="eyebrow">Instructor Academy</span><h1>Teach Cakes and Core with <em>confidence.</em></h1><p className="lead">{s.welcome}</p>
         <div className="row" style={{ marginTop: 26 }}><Link className="btn primary lg" href={go}>Become an instructor</Link><Link className="btn lg" href="/login">Sign in</Link></div>
