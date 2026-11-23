@@ -45,12 +45,46 @@ export async function POST(req) {
   try {
     const b = await req.json(); const op = String(b.op || ''); const admin = u.role === 'admin'; const out = {};
     // ----- admin only -----
-    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup)\.|class\.cancel$)/.test(op) || op === 'review' || /^(rating|payout|backup|audience)\./.test(op)) {
+    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup|cert)\.|class\.cancel$)/.test(op) || op === 'review' || /^(rating|payout|backup|audience)\./.test(op)) {
       if (!admin) return bad('Admins only', 403);
       const now = new Date().toISOString();
       switch (op) {
-        case 'program.save': { const id = b.id || `prog-${db.uid()}`; const old = b.id ? await db.get('programs', id) : null; const title = str(b.title, 80); if (!title) throw new Error('Name the program'); await db.put('programs', id, { ...(old || {}), id, title, blurb: str(b.blurb, 300), order: Number(b.order) || old?.order || 99 }); break; }
-        case 'program.del': await db.del('programs', str(b.id, 60)); break;
+        case 'program.save': { const id = b.id || `prog-${db.uid()}`; const old = b.id ? await db.get('programs', id) : null; const title = str(b.title, 80); if (!title) throw new Error('Name the program'); await db.put('programs', id, { ...(old || {}), id, title, blurb: str(b.blurb, 300), certInfo: b.certInfo !== undefined ? str(b.certInfo, 1500) : old?.certInfo || '', order: Number(b.order) || old?.order || 99 }); break; }
+        case 'program.del': {
+          const pid = str(b.id, 60); if ((await db.list('videos')).some((v) => v.programId === pid)) throw new Error('Remove or move its videos first');
+          // Take the badge away from everyone certified in it, so no orphaned certificates keep showing up.
+          const subs = (await db.list('submissions')).filter((x) => x.programId === pid && ['approved', 'pending'].includes(x.status));
+          await db.putMany('submissions', subs.map((x) => ({ ...x, status: 'revoked', feedback: 'This program was removed.', reviewedAt: now })));
+          await db.del('programs', pid); break; }
+        // ----- certifications (one per program) -----
+        case 'cert.grant': {
+          const t = await db.get('users', str(b.userId, 60)); if (!t) throw new Error('Pick an instructor');
+          const prog = await db.get('programs', str(b.programId, 60)); if (!prog) throw new Error('Unknown certification'); if (prog.cert === false) throw new Error('Turn this certification back on first');
+          const mine = (await db.list('submissions')).filter((x) => x.userId === t.id && x.programId === prog.id);
+          if (mine.some((x) => x.status === 'approved')) throw new Error(`${t.name} is already certified in ${prog.title}`);
+          const pend = mine.find((x) => x.status === 'pending');
+          if (pend) await db.put('submissions', pend.id, { ...pend, status: 'approved', feedback: '', reviewedAt: now });
+          else { const sid = `sub-${db.uid()}`; await db.put('submissions', sid, { id: sid, userId: t.id, programId: prog.id, url: '', note: 'Certified by admin', status: 'approved', createdAt: now, reviewedAt: now, feedback: '' }); }
+          break; }
+        case 'cert.revoke': {
+          const s = await db.get('submissions', str(b.id, 60)); if (!s || s.status !== 'approved') throw new Error('That certification was not found');
+          await db.put('submissions', s.id, { ...s, status: 'revoked', feedback: str(b.reason, 2000) || 'Your certification was removed by the Cakes and Core team.', reviewedAt: now }); break; }
+        case 'cert.hide': {
+          // Hidden: members who don't already have it can't see it or apply for it. People who hold it keep their badge.
+          const prog = await db.get('programs', str(b.id, 60)); if (!prog) throw new Error('Unknown certification');
+          await db.put('programs', prog.id, { ...prog, certHidden: !!b.hidden }); break; }
+        case 'cert.retire': {
+          // Removes a certification type: the program and its videos stay, but nobody holds or can earn this badge until it is turned back on.
+          const prog = await db.get('programs', str(b.id, 60)); if (!prog) throw new Error('Unknown certification');
+          const subs = (await db.list('submissions')).filter((x) => x.programId === prog.id && ['approved', 'pending'].includes(x.status));
+          await db.putMany('submissions', subs.map((x) => ({ ...x, status: 'revoked', retired: true, prevStatus: x.status, prevFeedback: x.feedback || '', feedback: 'This certification is no longer offered.', reviewedAt: now })));
+          await db.put('programs', prog.id, { ...prog, cert: false, certRemovedAt: now }); out.removed = subs.filter((x) => x.status === 'approved').length; break; }
+        case 'cert.restore': {
+          const prog = await db.get('programs', str(b.id, 60)); if (!prog) throw new Error('Unknown certification');
+          // Give back exactly the badges (and pending reviews) that removing the certification took away.
+          const subs = (await db.list('submissions')).filter((x) => x.programId === prog.id && x.status === 'revoked' && x.retired);
+          await db.putMany('submissions', subs.map(({ retired, prevStatus, prevFeedback, ...x }) => ({ ...x, status: prevStatus || 'approved', feedback: prevFeedback || '' })));
+          const { cert, certRemovedAt, ...rest } = prog; await db.put('programs', prog.id, rest); out.restored = subs.filter((x) => x.prevStatus !== 'pending').length; break; }
         case 'video.save': {
           const id = b.id || `vid-${db.uid()}`; const old = b.id ? await db.get('videos', id) : null; const title = str(b.title, 120); if (!title) throw new Error('Name the video');
           if (!(await db.get('programs', str(b.programId, 60)))) throw new Error('Pick a program');
@@ -66,7 +100,7 @@ export async function POST(req) {
           if ((await db.list('users')).some((x) => x.email === email)) throw new Error('That email already has an account');
           const id = `u-${db.uid()}`;
           await db.put('users', id, { id, email, name, role: 'member', hash: hashPassword(pw), city: str(b.city, 60), phone: str(b.phone, 30), comp: !!b.comp, createdAt: now, addedByAdmin: true, ...(b.agreed ? { agreedAt: now, agreedVersion: AGREEMENT_VERSION } : {}) });
-          for (const pid of Array.isArray(b.certified) ? b.certified.slice(0, 20) : []) { if (!(await db.get('programs', str(pid, 60)))) continue; const sid = `sub-${db.uid()}`; await db.put('submissions', sid, { id: sid, userId: id, programId: pid, url: '', note: 'Certified by admin', status: 'approved', createdAt: now, reviewedAt: now, feedback: '' }); }
+          for (const pid of Array.isArray(b.certified) ? b.certified.slice(0, 20) : []) { const cp = await db.get('programs', str(pid, 60)); if (!cp || cp.cert === false) continue; const sid = `sub-${db.uid()}`; await db.put('submissions', sid, { id: sid, userId: id, programId: pid, url: '', note: 'Certified by admin', status: 'approved', createdAt: now, reviewedAt: now, feedback: '' }); }
           break; }
         case 'member.update': {
           const t = await db.get('users', str(b.id, 60)); if (!t) throw new Error('Unknown member'); if (t.id === u.id && (b.suspended || b.role === 'member')) throw new Error('You cannot lock yourself out');
@@ -112,7 +146,8 @@ export async function POST(req) {
         case 'order.refund': await refundOrder(str(b.id, 80)); break;
         case 'review': {
           const s = await db.get('submissions', str(b.id, 60)); if (!s) throw new Error('Unknown submission'); if (!['approved', 'changes'].includes(b.status)) throw new Error('Choose approve or request changes');
-          await db.put('submissions', s.id, { ...s, status: b.status, feedback: str(b.feedback, 2000), reviewedAt: now }); break; }
+          if (b.status === 'approved' && (await db.get('programs', s.programId))?.cert === false) throw new Error('This certification is turned off. Turn it back on under Certifications first.');
+          const { retired, prevStatus, prevFeedback, ...rest } = s; await db.put('submissions', s.id, { ...rest, status: b.status, feedback: str(b.feedback, 2000), reviewedAt: now }); break; }
       }
       return NextResponse.json({ ok: true, ...out });
     }
@@ -122,8 +157,9 @@ export async function POST(req) {
     switch (op) {
       case 'progress': { const v = await db.get('videos', str(b.videoId, 60)); if (!v || v.published === false) throw new Error('Unknown video'); const id = `${u.id}_${v.id}`; await db.put('progress', id, { id, userId: u.id, videoId: v.id, done: !!b.done, at: now }); break; }
       case 'submit': {
-        const prog = await db.get('programs', str(b.programId, 60)); if (!prog) throw new Error('Pick a program');
+        const prog = await db.get('programs', str(b.programId, 60)); if (!prog) throw new Error('Pick a program'); if (prog.cert === false) throw new Error('This certification is not offered right now');
         const subs = (await db.list('submissions')).filter((s) => s.userId === u.id && s.programId === prog.id);
+        if (prog.certHidden && !subs.length) throw new Error('This certification is not offered right now');
         if (subs.some((s) => s.status === 'approved')) throw new Error('You are already certified in this program');
         if (subs.some((s) => s.status === 'pending')) throw new Error('You already have a video waiting for review');
         const link = url(b.url, 'Your video link'); if (!link) throw new Error('Add the link to your video');

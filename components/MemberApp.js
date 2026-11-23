@@ -57,18 +57,18 @@ function Learn({ d, load }) {
 }
 
 function Certify({ d, load }) {
-  const { note, act } = useAct(load); const [f, setF] = useState({ programId: d.programs[0]?.id || '', url: '', note: '' });
+  const mineP = (pid) => d.submissions.some((x) => x.programId === pid); const progs = d.programs.filter((p) => p.cert !== false && (!p.certHidden || mineP(p.id))); const { note, act } = useAct(load); const [f, setF] = useState({ programId: progs[0]?.id || '', url: '', note: '' });
   const prereq = !!d.me.agreedAt && !!d.me.cpr;
   const st = (pid) => { const s = d.submissions.filter((x) => x.programId === pid); return s.find((x) => x.status === 'approved') || s[0]; };
   return (<><h1>Get certified</h1><p className="mute">Teach the routine on video, submit the link, and the Cakes and Core team will review it. Approved instructors earn a certified badge and appear in the directory.</p>{note}
     <div className="card" style={{ margin: '14px 0' }}><b>Before you submit</b><p style={{ margin: '6px 0' }}>{d.me.agreedAt ? '✅' : '⬜'} Instructor agreement accepted<br />{d.me.cpr ? '✅' : '⬜'} {d.settings.prereqs} — add it under My profile</p></div>
-    <div className="grid">{d.programs.map((p) => { const s = st(p.id); return (<div key={p.id} className="card"><h3 style={{ fontSize: 19 }}>{p.title}</h3>
+    <div className="grid">{progs.map((p) => { const s = st(p.id); return (<div key={p.id} className="card"><h3 style={{ fontSize: 19 }}>{p.title}</h3>{p.certInfo && <p className="small" style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{p.certInfo}</p>}
       {(() => { const vs = d.videos.filter((v) => v.programId === p.id); const n = vs.filter((v) => d.progress.includes(v.id)).length; return vs.length ? <div style={{ margin: '6px 0' }}><div className="meter" aria-label={`${n} of ${vs.length} lessons watched`}><i style={{ width: `${Math.round((n / vs.length) * 100)}%` }} /></div><div className="small mute">{n} of {vs.length} lessons watched</div></div> : null; })()}{s?.status === 'approved' && <p><span className="tag ok">✓ Certified</span> <a className="btn sm" href={`/certificate/${s.id}`} target="_blank" rel="noopener noreferrer">Print certificate</a></p>}{s?.status === 'pending' && <p><span className="tag cyan">In review</span></p>}
-      {s?.status === 'changes' && <div className="err"><b>Changes requested</b><p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{s.feedback || 'Please resubmit.'}</p></div>}
+      {s?.status === 'revoked' && <div className="err"><b>Certification removed</b><p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{s.feedback || 'You can submit a new video to get certified again.'}</p></div>}{s?.status === 'changes' && <div className="err"><b>Changes requested</b><p style={{ margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{s.feedback || 'Please resubmit.'}</p></div>}
       {!s && <p className="small mute">Not submitted yet.</p>}</div>); })}</div>
     <h2>Submit a video</h2>
     {!prereq ? <div>{!d.me.agreedAt && <div className="card" style={{ marginBottom: 12 }}><b>Instructor agreement</b><p className="small mute" style={{ whiteSpace: 'pre-wrap' }}>{d.settings.agreement}</p><button className="btn primary" onClick={() => act('agree', {}, 'Agreement accepted')}>I accept the agreement</button></div>}{!d.me.cpr && <div className="err">Add your CPR/AED link in Profile before submitting.</div>}</div> : <div className="card">
-      <label>Program</label><select value={f.programId} onChange={(e) => setF({ ...f, programId: e.target.value })}>{d.programs.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>
+      <label>Program</label><select value={f.programId} onChange={(e) => setF({ ...f, programId: e.target.value })}>{progs.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</select>
       <label>Link to your teaching video (YouTube unlisted, Vimeo, Loom, Drive, etc.)</label><input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https://..." />
       <label>Notes for the reviewer (optional)</label><textarea value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
       <button className="btn primary" style={{ marginTop: 12 }} onClick={async () => { if (await act('submit', f, 'Submitted! We will review it soon.')) setF({ ...f, url: '', note: '' }); }}>Submit for review</button></div>}</>);
