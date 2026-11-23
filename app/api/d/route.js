@@ -168,7 +168,7 @@ export async function POST(req) {
         const start = zonedToUtcISO(b.start, tz), end = b.end ? zonedToUtcISO(b.end, tz) : ''; if (end && Date.parse(end) <= Date.parse(start)) throw new Error('The end time must be after the start time');
         if ((!old || old.start !== start) && Date.parse(start) < Date.now()) throw new Error('Pick a start time in the future');
         const cents = Math.round((Number(b.price) || 0) * 100); if (!(cents === 0 || (cents >= 50 && cents <= 20000))) throw new Error('Ticket price must be $0 (free) or between $0.50 and $200');
-        const pub = true; // every class an instructor adds is listed on the public Classes page let venueId = '', spots = Math.max(0, Math.min(1000, Math.floor(Number(b.spots) || 0)));
+        const pub = true; /* every class an instructor adds is listed on the public Classes page */ let venueId = '', spots = Math.max(0, Math.min(1000, Math.floor(Number(b.spots) || 0)));
         if (mode === 'in-person') { const v = venue; venueId = v.id; if (spots > v.capacity) throw new Error(`${v.name} holds ${v.capacity} people at most. Use ${v.capacity} spots or fewer.`); }
         else if (!spots) throw new Error('Set how many spots the online class has (up to 1,000)');
         const programId = str(b.programId, 60);
