@@ -53,7 +53,7 @@ export async function POST(req) {
   try {
     const b = await req.json(); const op = String(b.op || ''); const admin = u.role === 'admin'; const out = {};
     // ----- admin only -----
-    if (/^((program|video|announce|resource|member|reply|settings|venue|order|popup|cert)\.|class\.cancel$)/.test(op) || op === 'review' || /^(rating|payout|backup|audience)\./.test(op)) {
+    if (/^((program|video|announce|resource|member|reply|settings|venue|order|cert)\.|class\.cancel$)/.test(op) || op === 'review' || /^(rating|payout|backup|audience)\./.test(op)) {
       if (!admin) return bad('Admins only', 403);
       const now = new Date().toISOString();
       switch (op) {
@@ -134,23 +134,6 @@ export async function POST(req) {
         case 'venue.del': {
           const v = await db.get('venues', str(b.id, 60)); if (!v) break;
           if ((await db.list('classes')).some((c) => c.venueId === v.id)) { await db.put('venues', v.id, { ...v, active: false }); out.message = 'This studio has classes on record, so it was hidden instead of deleted.'; } else await db.del('venues', v.id); break; }
-        case 'popup.save': {
-          const id = b.id || `cls-pop-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (b.id && !old?.popup) throw new Error('Unknown pop-up event');
-          const title = str(b.title, 100); if (!title) throw new Error('Name the event'); const ins = await db.get('users', str(b.instructorId, 60)); if (!ins || ins.suspended) throw new Error('Choose the instructor from the list');
-          const vname = str(b.venueName, 100), address = str(b.address, 160), city = str(b.city, 60), st = String(b.state || '').toUpperCase(); if (!vname) throw new Error('Add the location name'); if (!address) throw new Error('Add the street address'); if (!city) throw new Error('Add the city'); if (!STATES[st]) throw new Error('Pick a state');
-          const cap = Math.floor(Number(b.capacity)); if (!(cap >= 1 && cap <= 5000)) throw new Error('Set the capacity (1 to 5,000)');
-          const LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/; if (!LOCAL.test(String(b.start || ''))) throw new Error('Pick the date and start time'); if (b.end && !LOCAL.test(String(b.end))) throw new Error('Pick a valid end time');
-          const tz = TZ_OPTIONS.some((z) => z[0] === b.tz) ? b.tz : (STATE_TZ[st] || DEFAULT_TZ); const start = zonedToUtcISO(b.start, tz), end = b.end ? zonedToUtcISO(b.end, tz) : '';
-          if (end && Date.parse(end) <= Date.parse(start)) throw new Error('The end time must be after the start time'); if ((!old || old.start !== start) && Date.parse(start) < Date.now()) throw new Error('Pick a start time in the future');
-          const cents = Math.round((Number(b.price) || 0) * 100); if (!(cents === 0 || (cents >= 50 && cents <= 20000))) throw new Error('Ticket price must be $0 (free) or between $0.50 and $200');
-          if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (start !== old.start || end !== (old.end || '')) throw new Error('Tickets are already sold, so the date and time are locked. Cancel the event to refund buyers.'); if (cap < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} or more.`); } }
-          const vid = old?.venueId || `ven-pop-${db.uid()}`; const oldV = await db.get('venues', vid);
-          await db.put('venues', vid, { ...(oldV || { createdAt: now }), id: vid, slug: oldV?.slug || vid, name: vname, address, city, state: st, zip: str(b.zip, 10), tz, capacity: cap, website: '', phone: '', notes: '', active: true, popup: true });
-          await db.put('classes', id, { ...(old || {}), id, popup: true, userId: ins.id, title, tagline: str(b.tagline, 140), programId: str(b.programId, 60), start, end, mode: 'in-person', venueId: vid, tz, spots: 0, price: cents, link: '', notes: str(b.notes, 2000), public: b.public !== false }); break; }
-        case 'popup.del': {
-          const c = await db.get('classes', str(b.id, 80)); if (!c?.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
-          if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This event has ticket orders. Use Cancel & refund under Classes & tickets.');
-          await db.delMany('tickets', (await db.list('tickets')).filter((t) => t.classId === c.id).map((t) => t.id)); await db.delMany('orders', os.map((o) => o.id)); await db.del('classes', c.id); if (c.venueId) await db.del('venues', c.venueId); break; }
         case 'class.cancel': { const r = await cancelClass(str(b.id, 80)); out.refunded = r.refunded; out.failed = r.failed; break; }
         case 'order.refund': await refundOrder(str(b.id, 80)); break;
         case 'review': {
@@ -218,6 +201,25 @@ export async function POST(req) {
         if (!mine.length || mine.some((c) => c.userId !== u.id)) throw new Error('That is not your class series');
         if (op === 'series.ongoing') { out.added = await startOngoing(sid, u.id); break; }
         const s = await db.get('series', sid); if (s) await db.put('series', sid, { ...s, ongoing: false, stoppedAt: now }); break; }
+      case 'popup.save': {
+          const id = b.id || `cls-pop-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (b.id && !old?.popup) throw new Error('Unknown pop-up event');
+          // Any member can run a pop-up; they teach it themselves. Admins can pick any instructor and edit anyone's.
+          if (old && !admin && old.userId !== u.id) throw new Error('That is not your pop-up event'); if (old?.canceled) throw new Error('This event was canceled');
+          const title = str(b.title, 100); if (!title) throw new Error('Name the event'); const ins = admin ? await db.get('users', str(b.instructorId, 60)) : u; if (!ins || ins.suspended) throw new Error('Choose the instructor from the list');
+          const vname = str(b.venueName, 100), address = str(b.address, 160), city = str(b.city, 60), st = String(b.state || '').toUpperCase(); if (!vname) throw new Error('Add the location name'); if (!address) throw new Error('Add the street address'); if (!city) throw new Error('Add the city'); if (!STATES[st]) throw new Error('Pick a state');
+          const cap = Math.floor(Number(b.capacity)); if (!(cap >= 1 && cap <= 5000)) throw new Error('Set the capacity (1 to 5,000)');
+          const LOCAL = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/; if (!LOCAL.test(String(b.start || ''))) throw new Error('Pick the date and start time'); if (b.end && !LOCAL.test(String(b.end))) throw new Error('Pick a valid end time');
+          const tz = TZ_OPTIONS.some((z) => z[0] === b.tz) ? b.tz : (STATE_TZ[st] || DEFAULT_TZ); const start = zonedToUtcISO(b.start, tz), end = b.end ? zonedToUtcISO(b.end, tz) : '';
+          if (end && Date.parse(end) <= Date.parse(start)) throw new Error('The end time must be after the start time'); if ((!old || old.start !== start) && Date.parse(start) < Date.now()) throw new Error('Pick a start time in the future');
+          const cents = Math.round((Number(b.price) || 0) * 100); if (!(cents === 0 || (cents >= 50 && cents <= 20000))) throw new Error('Ticket price must be $0 (free) or between $0.50 and $200');
+          if (old) { const snap = await snapshot(); const sold = availability(old, snap).sold; if (sold > 0) { if (start !== old.start || end !== (old.end || '')) throw new Error('Tickets are already sold, so the date and time are locked. Cancel the event to refund buyers.'); if (cap < sold) throw new Error(`${sold} tickets are already sold. Use ${sold} or more.`); } }
+          const vid = old?.venueId || `ven-pop-${db.uid()}`; const oldV = await db.get('venues', vid);
+          await db.put('venues', vid, { ...(oldV || { createdAt: now }), id: vid, slug: oldV?.slug || vid, name: vname, address, city, state: st, zip: str(b.zip, 10), tz, capacity: cap, website: '', phone: '', notes: '', active: true, popup: true });
+          await db.put('classes', id, { ...(old || {}), id, popup: true, userId: ins.id, title, tagline: str(b.tagline, 140), programId: str(b.programId, 60), start, end, mode: 'in-person', venueId: vid, tz, spots: 0, price: cents, link: '', notes: str(b.notes, 2000), public: true }); break; }
+      case 'popup.del': {
+          const c = await db.get('classes', str(b.id, 80)); if (!c?.popup || (!admin && c.userId !== u.id)) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
+          if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error(admin ? 'This event has ticket orders. Use Cancel & refund under Classes & tickets.' : 'This event has ticket orders. Ask Cakes and Core to cancel it so buyers are refunded.');
+          await db.delMany('tickets', (await db.list('tickets')).filter((t) => t.classId === c.id).map((t) => t.id)); await db.delMany('orders', os.map((o) => o.id)); await db.del('classes', c.id); if (c.venueId) await db.del('venues', c.venueId); break; }
       case 'class.del': {
         const c = await db.get('classes', str(b.id, 60)); if (!c || c.userId !== u.id || c.popup) break; const os = (await db.list('orders')).filter((o) => o.classId === c.id);
         if (os.some((o) => !['expired', 'canceled'].includes(o.status) && !(o.status === 'held' && o.holdUntil < Date.now()))) throw new Error('This class has ticket orders. Ask Cakes and Core to cancel it so buyers are refunded.');
