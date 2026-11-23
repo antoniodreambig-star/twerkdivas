@@ -17,6 +17,13 @@ const addDays = (local, n) => { const [d, t] = local.split('T'); const x = new D
 
 const bad = (m, s = 400) => NextResponse.json({ error: m }, { status: s });
 const url = (v, label) => { const x = str(v, 600); if (!x) return ''; const c = cleanUrl(x); if (!c) throw new Error(`${label} must be a full https:// link`); return c; };
+// Saves an uploaded photo (a small data: URL made in the browser) and returns the link to show it.
+async function savePhoto(userId, data) {
+  const d = String(data || ''); if (!d) { await db.del('photos', userId); return ''; }
+  if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(d)) throw new Error('Upload a JPG, PNG or WebP image');
+  if (d.length > 700000) throw new Error('That photo is too large. Try a smaller one.');
+  await db.put('photos', userId, { id: userId, data: d, at: new Date().toISOString() }); return `/api/photo/${userId}?v=${Date.now().toString(36)}`;
+}
 const date = (v, label) => { const t = new Date(v); if (!v || Number.isNaN(t.getTime())) throw new Error(`Pick a valid ${label}`); return t.toISOString(); };
 
 export async function GET(req) {
@@ -105,6 +112,7 @@ export async function POST(req) {
         case 'member.update': {
           const t = await db.get('users', str(b.id, 60)); if (!t) throw new Error('Unknown member'); if (t.id === u.id && (b.suspended || b.role === 'member')) throw new Error('You cannot lock yourself out');
           if ('comp' in b) t.comp = !!b.comp; if ('suspended' in b) t.suspended = !!b.suspended; if (b.role === 'admin' || b.role === 'member') t.role = b.role;
+          if ('photoData' in b) t.photo = await savePhoto(t.id, b.photoData);
           if (b.password) { if (String(b.password).length < 8) throw new Error('Use at least 8 characters'); t.hash = hashPassword(String(b.password)); t.sessionsAfter = Date.now(); }
           await db.put('users', t.id, t); break; }
         case 'reply.send': { const t = str(b.text, 2000); if (!t || !b.userId) throw new Error('Write a reply'); await db.put('messages', `msg-${db.uid()}`, { id: `msg-${db.uid()}`, userId: b.userId, from: 'admin', text: t, createdAt: now, read: false }); for (const m of (await db.list('messages')).filter((x) => x.userId === b.userId && x.from === 'member' && !x.read)) await db.put('messages', m.id, { ...m, read: true }); break; }
@@ -164,9 +172,10 @@ export async function POST(req) {
         if (subs.some((s) => s.status === 'pending')) throw new Error('You already have a video waiting for review');
         const link = url(b.url, 'Your video link'); if (!link) throw new Error('Add the link to your video');
         const id = `sub-${db.uid()}`; await db.put('submissions', id, { id, userId: u.id, programId: prog.id, url: link, note: str(b.note, 1000), status: 'pending', createdAt: now }); break; }
+      case 'photo': { await db.put('users', u.id, { ...u, photo: await savePhoto(u.id, b.data) }); break; }
       case 'profile': {
         const cpr = b.cprUrl !== undefined ? url(b.cprUrl, 'The CPR/AED link') : u.cpr?.url || ''; const n = str(b.name, 80); if (!n) throw new Error('Add your name');
-        await db.put('users', u.id, { ...u, name: n, bio: str(b.bio, 800), photo: url(b.photo, 'The photo link'), city: str(b.city, 60), phone: str(b.phone, 30), listed: b.listed !== false, instagram: str(b.instagram, 60).replace(/^@/, ''), tiktok: str(b.tiktok, 60).replace(/^@/, ''), website: url(b.website, 'Your website link'), specialties: str(b.specialties, 200), cities: str(b.cities, 200), cpr: cpr ? { url: cpr, at: u.cpr?.url === cpr ? u.cpr.at : now } : null }); break; }
+        await db.put('users', u.id, { ...u, name: n, bio: str(b.bio, 800), photo: b.photo === undefined || b.photo === u.photo ? (u.photo || '') : url(b.photo, 'The photo link'), city: str(b.city, 60), phone: str(b.phone, 30), listed: b.listed !== false, instagram: str(b.instagram, 60).replace(/^@/, ''), tiktok: str(b.tiktok, 60).replace(/^@/, ''), website: url(b.website, 'Your website link'), specialties: str(b.specialties, 200), cities: str(b.cities, 200), cpr: cpr ? { url: cpr, at: u.cpr?.url === cpr ? u.cpr.at : now } : null }); break; }
       case 'class.save': {
         const id = b.id || `cls-${db.uid()}`; const old = b.id ? await db.get('classes', id) : null; if (old && old.userId !== u.id) throw new Error('That is not your class'); if (old?.popup) throw new Error('Pop-up events are managed by Cakes and Core'); if (old?.canceled) throw new Error('This class was canceled');
         const title = str(b.title, 100); if (!title) throw new Error('Name the class'); const mode = b.mode === 'online' ? 'online' : 'in-person';
