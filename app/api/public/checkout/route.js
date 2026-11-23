@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { createOrder, markPaid, releaseOrder } from '@/lib/tickets';
-import { ticketCheckout, stripeOn } from '@/lib/stripe';
+import { ticketCheckout, paymentsOn } from '@/lib/stripe';
 import { appUrl } from '@/lib/email';
 import { isEmail, str } from '@/lib/rules';
 import { settings } from '@/lib/data';
@@ -22,7 +22,7 @@ export async function POST(req) {
     const cls = await db.get('classes', str(b.classId, 80)); if (!cls || cls.public === false) return err('That class is not available', 404);
     const ins = await db.get('users', cls.userId); if (!ins || ins.suspended || !(ins.role === 'admin' || ins.comp || ['active', 'trialing', 'past_due'].includes(ins.sub?.status))) return err('That class is not available', 404);
     const set = await settings(); const origin = appUrl(req); const usePack = !!str(b.packCode, 20);
-    if ((cls.price || 0) > 0 && !usePack && !stripeOn()) return err('Ticket sales are not switched on yet. Please check back soon.', 503);
+    if ((cls.price || 0) > 0 && !usePack && !paymentsOn()) return err('Ticket sales are not switched on yet. Please check back soon.', 503);
     const extra = { waiverAt: new Date().toISOString(), waiverVer: waiverVersion(set), optIn: b.optIn === true };
     const order = await createOrder({ cls, name, email, qty: b.qty, origin, extra });
     if (b.optIn === true) addSubscriber({ email, name, source: 'checkout' }).catch(() => {});

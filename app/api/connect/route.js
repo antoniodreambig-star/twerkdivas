@@ -2,12 +2,12 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import * as db from '@/lib/db';
 import { currentUser } from '@/lib/auth';
-import { stripeOn, connectCreate, connectLink, connectStatus, connectDashboard } from '@/lib/stripe';
+import { paymentsOn, connectCreate, connectLink, connectStatus, connectDashboard } from '@/lib/stripe';
 import { appUrl } from '@/lib/email';
 const err = (m, s = 400) => NextResponse.json({ error: m }, { status: s });
 // Instructors link a Stripe Express account here so ticket money reaches them automatically.
 export async function POST(req) {
-  const u = await currentUser(); if (!u) return err('Please sign in', 401); if (!stripeOn()) return err('Payments are not switched on yet', 503);
+  const u = await currentUser(); if (!u) return err('Please sign in', 401); if (!paymentsOn()) return err('Payments are not switched on yet', 503);
   try {
     const { action } = await req.json().catch(() => ({})); let acct = u.connect?.acct || '';
     if (action === 'start') { if (!acct) { acct = await connectCreate(u); await db.put('users', u.id, { ...u, connect: { acct, ready: false, detailsSubmitted: false, updatedAt: new Date().toISOString() } }); } return NextResponse.json({ url: await connectLink(acct, appUrl(req)) }); }
