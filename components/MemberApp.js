@@ -1,4 +1,5 @@
 'use client';
+import Avatar, { shrinkPhoto } from './Avatar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Player from './Player';
 import ScrollRow from './ScrollRow';
@@ -136,7 +137,7 @@ function People({ d }) {
   const [list, setList] = useState(null);
   useEffect(() => { fetch('/api/public/instructors').then((r) => r.json()).then((j) => setList(j.instructors || [])).catch(() => setList([])); }, []);
   return (<><h1>Community</h1><p className="mute">Certified Cakes and Core instructors.</p>
-    <div className="grid">{(list || []).map((i, k) => <div className="card" key={k}>{i.photo && <img src={i.photo} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />}<h3 style={{ fontSize: 18 }}>{i.name}</h3><div className="small mute">{i.city}</div><p className="small">{i.bio}</p>{i.certified.map((c) => <span key={c} className="tag volt" style={{ marginRight: 4 }}>{c}</span>)}</div>)}</div>{list && !list.length && <p className="mute">Certified instructors will appear here.</p>}</>);
+    <div className="grid">{(list || []).map((i, k) => <div className="card" key={k} style={{ textAlign: 'center' }}><Avatar src={i.photo} name={i.name} size={112} style={{ margin: '0 auto 10px' }} /><h3 style={{ fontSize: 18, margin: 0 }}>{i.name}</h3>{i.city && <div className="small mute">{i.city}</div>}<div className="small mute" style={{ margin: '10px 0 4px', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700 }}>Certified in</div><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>{i.certified.map((c) => <span key={c} className="tag volt">✓ {c}</span>)}</div>{i.bio && <p className="small" style={{ textAlign: 'left' }}>{i.bio}</p>}</div>)}</div>{list && !list.length && <p className="mute">Certified instructors will appear here.</p>}</>);
 }
 
 function Support({ d, load }) {
@@ -147,12 +148,12 @@ function Support({ d, load }) {
 }
 
 function Profile({ d, load }) {
-  const m = d.me; const { note, act } = useAct(load); const [f, setF] = useState({ name: m.name, bio: m.bio, photo: m.photo, city: m.city, phone: m.phone, listed: m.listed, cprUrl: m.cpr?.url || '', instagram: m.instagram || '', tiktok: m.tiktok || '', website: m.website || '', specialties: m.specialties || '', cities: m.cities || '' });
+  const m = d.me; const { note, act } = useAct(load); const [f, setF] = useState({ name: m.name, bio: m.bio, city: m.city, phone: m.phone, listed: m.listed, cprUrl: m.cpr?.url || '', instagram: m.instagram || '', tiktok: m.tiktok || '', website: m.website || '', specialties: m.specialties || '', cities: m.cities || '' });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   async function portal() { const r = await fetch('/api/billing/portal', { method: 'POST' }); const j = await r.json().catch(() => ({})); if (j.url) location.href = j.url; else alert(j.error || 'Could not open billing'); }
   return (<><h1>My profile</h1>{note}<div className="card">
     <label>Name</label><input value={f.name} onChange={set('name')} /><label>City</label><input value={f.city} onChange={set('city')} /><label>Phone (private)</label><input value={f.phone} onChange={set('phone')} />
-    <label>Short bio</label><textarea value={f.bio} onChange={set('bio')} /><label>Photo link (https)</label><input value={f.photo} onChange={set('photo')} />
+    <label>Short bio</label><textarea value={f.bio} onChange={set('bio')} /><label>Photo</label><div className="row" style={{ alignItems: 'center', gap: 14 }}><Avatar src={m.photo} name={m.name} size={88} /><div className="grow"><label className="btn sm" style={{ display: 'inline-block', cursor: 'pointer', margin: 0 }}>{m.photo ? 'Change photo' : 'Upload photo'}<input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => { const file = e.target.files?.[0]; e.target.value = ''; if (!file) return; try { const data = await shrinkPhoto(file); await act('photo', { data }, 'Photo saved'); } catch (er) { alert(er.message); } }} /></label>{m.photo && <button className="btn sm" style={{ marginLeft: 8 }} onClick={() => confirm('Remove your photo?') && act('photo', { data: '' }, 'Photo removed')}>Remove</button>}<p className="small mute" style={{ margin: '6px 0 0' }}>Shown in the instructor directory with your certifications. A clear, well-lit head-and-shoulders photo works best.</p></div></div>
     <label>Specialties (shown on your public page)</label><input value={f.specialties} onChange={set('specialties')} placeholder="Twerk cardio, barre, beginners" /><label>Other cities you teach in</label><input value={f.cities} onChange={set('cities')} placeholder="Killeen, Austin" />
     <div className="row"><div className="grow"><label>Instagram handle</label><input value={f.instagram} onChange={set('instagram')} placeholder="yourname" /></div><div className="grow"><label>TikTok handle</label><input value={f.tiktok} onChange={set('tiktok')} placeholder="yourname" /></div></div><label>Website (https)</label><input value={f.website} onChange={set('website')} placeholder="https://..." />
     <label>{d.settings.prereqs}</label><input value={f.cprUrl} onChange={set('cprUrl')} placeholder="https://..." />
