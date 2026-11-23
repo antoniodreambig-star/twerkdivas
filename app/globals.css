@@ -302,3 +302,25 @@ footer{border-top:3px solid var(--black);box-shadow:0 -1px 0 var(--hot)}
   .srow-track.chips::-webkit-scrollbar-track{background:rgba(11,11,16,.08);border-radius:999px}
   .srow-track.chips::-webkit-scrollbar-thumb{background:var(--pink);border-radius:999px}
 }
+
+/* ---- public header: phone menu matches cakesandcore.com (Menu pill + drop-down black panel) ---- */
+.pubhead{position:sticky}
+.pubhead .top{position:static}
+.pubbrand{display:flex;align-items:center;flex:none}
+.pubnav .publinks,.pubnav .pubcta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pubnav .pubcta{gap:8px;margin-left:6px}
+.pubtoggle{display:none}
+@media(max-width:900px){
+  .pubhead .top{justify-content:space-between;padding:8px 20px;min-height:76px}
+  .pubhead .top img{height:62px}
+  .pubtoggle{display:block;margin-left:auto;background:none;color:#fff;border:2px solid rgba(255,255,255,.7);border-radius:999px;padding:7px 16px;font:italic 800 17px/1.1 var(--cond);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .pubtoggle:hover,.pubtoggle[aria-expanded=true]{border-color:#fff;background:rgba(255,255,255,.08)}
+  .pubnav{display:none;position:absolute;left:0;right:0;top:100%;margin-top:3px;flex-direction:column;align-items:stretch;gap:0;background:var(--black);padding:10px 24px 22px;border-bottom:3px solid var(--hot);box-shadow:0 14px 30px rgba(0,0,0,.35);max-height:calc(100vh - 90px);overflow-y:auto}
+  .pubnav.is-open{display:flex}
+  .pubnav .publinks{flex-direction:column;align-items:stretch;gap:0}
+  .pubnav .publinks a{display:block;padding:14px 6px;border-radius:0;font-size:22px;font-weight:800;letter-spacing:.06em;border-bottom:1px solid rgba(255,255,255,.14)}
+  .pubnav .publinks a:hover,.pubnav .publinks a[aria-current=page]{background:none;box-shadow:none;color:var(--hot-hi)}
+  .pubnav .pubcta{flex-direction:column;align-items:stretch;gap:12px;margin:18px 0 0}
+  .pubnav .pubcta .btn{display:block;text-align:center;border-radius:999px;padding:12px;font:italic 800 17px/1.1 var(--cond);letter-spacing:.06em;text-transform:uppercase;background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:none}
+  .pubnav .pubcta .btn.primary{background:linear-gradient(180deg,var(--hot-hi),var(--hot) 50%,var(--hot-lo));border-color:var(--hot);box-shadow:0 0 18px rgba(255,26,126,.6)}
+}
