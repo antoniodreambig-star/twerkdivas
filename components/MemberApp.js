@@ -6,6 +6,7 @@ import ScrollRow from './ScrollRow';
 import Icon from './Icon';
 import Earnings from './Earnings';
 import Scanner from './Scanner';
+import Popups from './Popups';
 import { Modal, useAct, when, day } from './ui';
 import { fmtWhen, fmtTime, utcToZonedInput } from '@/lib/tz';
 import { TZ_OPTIONS } from '@/lib/us';
@@ -91,6 +92,7 @@ function Classes({ d, load }) {
     <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>{up.length === 0 && <p className="mute">No upcoming classes. Add one!</p>}{up.map((c) => R(c))}</div>
     {past.length > 0 && <><h2>Past</h2><div style={{ display: 'grid', gap: 10 }}>{past.slice(-6).reverse().map((c) => R(c, true))}</div></>}
     <h2>Everyone's upcoming classes</h2><div style={{ display: 'grid', gap: 10 }}>{d.upcoming.filter((c) => c.userId !== d.me.id).length === 0 && <p className="mute">Nothing yet.</p>}{d.upcoming.filter((c) => c.userId !== d.me.id).map((c) => <div className="card" key={c.id}><b>{c.title}</b> <span className="tag">{c.mode}</span><div className="small mute">{fmtWhen(c.start, c.tz)} · {c.who}{vn(c.venueId) ? ` · ${vn(c.venueId).city}, ${vn(c.venueId).state}` : ''}</div></div>)}</div>
+    <div style={{ marginTop: 24 }}><Popups d={d} load={load} /></div>
     {roster && <RosterModal id={roster} onClose={() => { setRoster(null); load(); }} />}
     {edit && <Modal title={edit.id ? 'Edit class' : 'New class'} onClose={() => setEdit(null)}>
       {edit.sold > 0 && <div className="err" style={{ background: '#fff7e6', color: '#7a4a00', borderColor: '#f3d28a' }}>{edit.sold} ticket{edit.sold === 1 ? '' : 's'} sold: time, place and type are locked.</div>}
