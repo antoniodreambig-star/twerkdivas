@@ -78,7 +78,7 @@ function Certify({ d, load }) {
 const $ = (c) => (c === 0 ? 'Free' : `$${(c / 100).toFixed(c % 100 ? 2 : 0)}`);
 function Classes({ d, load }) {
   const { note, act } = useAct(load); const [edit, setEdit] = useState(null); const [roster, setRoster] = useState(null); const [copied, setCopied] = useState('');
-  const blank = { title: '', programId: d.certs[0]?.programId || '', start: '', end: '', mode: 'in-person', venueId: d.venues[0]?.id || '', tz: 'America/Chicago', link: '', bookUrl: '', bookNote: '', spots: 0, price: 0, notes: '', public: true, repeatWeeks: 1 };
+  const blank = { title: d.programs.find((p) => p.id === d.certs[0]?.programId)?.title || '', programId: d.certs[0]?.programId || '', start: '', end: '', mode: 'in-person', venueId: d.venues[0]?.id || '', tz: 'America/Chicago', link: '', bookUrl: '', bookNote: '', spots: 0, price: 0, notes: '', public: true, repeatWeeks: 1 };
   const up = d.classes.filter((c) => new Date(c.start) >= new Date(Date.now() - 36e5)); const past = d.classes.filter((c) => !up.includes(c));
   const pn = (id) => d.programs.find((p) => p.id === id)?.title || ''; const vn = (id) => d.venues.find((v) => v.id === id);
   const certIds = d.certs.map((c) => c.programId); const venue = edit && vn(edit.venueId);
@@ -94,8 +94,8 @@ function Classes({ d, load }) {
     {roster && <RosterModal id={roster} onClose={() => { setRoster(null); load(); }} />}
     {edit && <Modal title={edit.id ? 'Edit class' : 'New class'} onClose={() => setEdit(null)}>
       {edit.sold > 0 && <div className="err" style={{ background: '#fff7e6', color: '#7a4a00', borderColor: '#f3d28a' }}>{edit.sold} ticket{edit.sold === 1 ? '' : 's'} sold: time, place and type are locked.</div>}
-      <label>Class name</label><input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} />
-      <label>Program</label><select value={edit.programId} onChange={(e) => setEdit({ ...edit, programId: e.target.value })}><option value="">Pick a program</option>{d.programs.map((p) => <option key={p.id} value={p.id}>{p.title}{certIds.includes(p.id) ? ' ✓ certified' : ''}</option>)}</select>
+      <label>Program</label><select value={edit.programId} onChange={(e) => { const was = pn(edit.programId); setEdit({ ...edit, programId: e.target.value, title: !edit.title.trim() || edit.title === was ? pn(e.target.value) : edit.title }); }}><option value="">Pick a program</option>{d.programs.map((p) => <option key={p.id} value={p.id}>{p.title}{certIds.includes(p.id) ? ' ✓ certified' : ''}</option>)}</select>
+      <label>Class name</label><input value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} /><p className="small mute" style={{ margin: '4px 0 0' }}>Filled in from the program. Change it only if you want a different name.</p>
       <label>Type</label><select disabled={edit.sold > 0} value={edit.mode} onChange={(e) => setEdit({ ...edit, mode: e.target.value })}><option value="in-person">In person at a partner studio</option><option value="online">Online</option></select>
       {edit.mode === 'online' ? <><label>Time zone</label><select value={edit.tz} onChange={(e) => setEdit({ ...edit, tz: e.target.value })}>{TZ_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select><label>Private class link (Zoom, etc.)</label><input value={edit.link} onChange={(e) => setEdit({ ...edit, link: e.target.value })} placeholder="https://..." /></>
         : <><label>Partner studio</label>{d.venues.length === 0 ? <p className="small mute">No partner studios yet. Ask Cakes and Core to add one.</p> : <select disabled={edit.sold > 0} value={edit.venueId} onChange={(e) => setEdit({ ...edit, venueId: e.target.value })}>{d.venues.map((v) => <option key={v.id} value={v.id}>{v.name} · {v.city}, {v.state} (max {v.capacity})</option>)}</select>}</>}
