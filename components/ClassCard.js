@@ -8,5 +8,5 @@ export default function ClassCard({ c }) {
   return (<Link href={`/classes/${c.id}`} className="cls"><div className="datebox"><span>{mo}</span><b>{dd}</b></div>
     <div className="grow"><div className="row" style={{ gap: 8 }}><b className="clst">{c.title}</b>{c.program && <span className="tag volt">{c.program}</span>}{c.mode === 'online' && <span className="tag cyan">Online</span>}</div>
       <div className="small mute">{fmtTime(c.start, c.tz)} · {c.instructor}{c.venue ? ` · ${c.venue.name}, ${c.venue.city}, ${c.venue.state}` : ''}</div></div>
-    <div className="clsr"><b>{money(c.price)}</b><span className={`small ${out ? 'soldout' : low ? 'low' : 'mute'}`}>{out ? 'Sold out' : low ? `Only ${c.left} left` : `${c.left} spots`}</span></div></Link>);
+    <div className="clsr">{c.bookUrl ? <><b>Book</b><span className="small mute">on studio site</span></> : <><b>{money(c.price)}</b><span className={`small ${out ? 'soldout' : low ? 'low' : 'mute'}`}>{out ? 'Sold out' : low ? `Only ${c.left} left` : `${c.left} spots`}</span></>}</div></Link>);
 }
