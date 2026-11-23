@@ -23,5 +23,6 @@ export default function AuthForm({ mode, agreement }) {
       <button className="btn primary" style={{ width: '100%', marginTop: 16 }} disabled={busy}>{busy ? 'One moment...' : signup ? 'Create my account' : 'Sign in'}</button>
     </form>
     <p className="small mute" style={{ textAlign: 'center', marginTop: 14 }}>{signup ? <>Already an instructor? <Link href="/login">Sign in</Link></> : <>New here? <Link href="/signup">Create an account</Link> · <Link href="/forgot">Forgot password?</Link></>}</p>
+    <p className="small mute" style={{ textAlign: 'center', marginTop: 6 }}><a href="https://cakesandcore.com/">← Back to cakesandcore.com</a></p>
   </div></div>);
 }
