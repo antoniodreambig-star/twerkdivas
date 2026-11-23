@@ -20,7 +20,7 @@ export async function POST(req) {
     if (!name) return err('Add your name'); if (!isEmail(email)) return err('Enter a valid email so we can send your tickets');
     if (b.agree !== true) return err('Please accept the participation waiver and refund policy to continue');
     const cls = await db.get('classes', str(b.classId, 80)); if (!cls || cls.public === false) return err('That class is not available', 404);
-    if (cls.bookUrl) return err('This class is booked on the studio\'s own site. Use the Book a spot button on the class page.');
+    if (cls.bookUrl || cls.bookNote) return err(cls.bookNote || 'This class is booked on the studio\'s own site. Use the Book a spot button on the class page.');
     const ins = await db.get('users', cls.userId); if (!ins || ins.suspended || !(ins.role === 'admin' || ins.comp || ['active', 'trialing', 'past_due'].includes(ins.sub?.status))) return err('That class is not available', 404);
     const set = await settings(); const origin = appUrl(req); const usePack = !!str(b.packCode, 20);
     if ((cls.price || 0) > 0 && !usePack && !stripeOn()) return err('Ticket sales are not switched on yet. Please check back soon.', 503);
